@@ -33,3 +33,5 @@ darkforest.localhost.toml
 /local/*
 
 generated/*
+
+/deployments/*

@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import type { Contract, ContractFactory, ContractReceipt } from 'ethers';
 import { task, types } from 'hardhat/config';
 import type { HardhatRuntimeEnvironment, Libraries } from 'hardhat/types';
 import * as path from 'path';
@@ -6,6 +7,233 @@ import { dedent } from 'ts-dedent';
 import * as settings from '../settings';
 import { DiamondChanges } from '../utils/diamond';
 import { tscompile } from '../utils/tscompile';
+
+type DeployRecord = {
+  address: string;
+  txHash?: string;
+  confirmed?: boolean;
+};
+
+type DeployState = {
+  network: string;
+  chainId?: number;
+  contracts: Record<string, DeployRecord>;
+  transactions?: Record<string, DeployRecord>;
+};
+
+type DeployStateContext = {
+  hre: HardhatRuntimeEnvironment;
+  filePath: string;
+  state: DeployState;
+};
+
+let activeDeployState: DeployStateContext | undefined;
+
+function getDeployStatePath(hre: HardhatRuntimeEnvironment) {
+  const chainId = hre.network.config.chainId ?? 'unknown';
+  return path.join(__dirname, '..', 'deployments', `${hre.network.name}-${chainId}.json`);
+}
+
+function loadDeployState(hre: HardhatRuntimeEnvironment): DeployStateContext {
+  const filePath = getDeployStatePath(hre);
+  let state: DeployState = {
+    network: hre.network.name,
+    chainId: hre.network.config.chainId,
+    contracts: {},
+  };
+
+  if (fs.existsSync(filePath)) {
+    state = JSON.parse(fs.readFileSync(filePath, 'utf8')) as DeployState;
+  }
+
+  return { hre, filePath, state };
+}
+
+function saveDeployState(context: DeployStateContext) {
+  fs.mkdirSync(path.dirname(context.filePath), { recursive: true });
+  fs.writeFileSync(context.filePath, `${JSON.stringify(context.state, null, 2)}\n`);
+}
+
+function rememberDeploy(contractName: string, record: DeployRecord) {
+  if (!activeDeployState) {
+    return;
+  }
+
+  activeDeployState.state.contracts[contractName] = record;
+  saveDeployState(activeDeployState);
+}
+
+function rememberTransaction(transactionName: string, record: DeployRecord) {
+  if (!activeDeployState) {
+    return;
+  }
+
+  activeDeployState.state.transactions = activeDeployState.state.transactions ?? {};
+  activeDeployState.state.transactions[transactionName] = record;
+  saveDeployState(activeDeployState);
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function getErrorCode(error: unknown) {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return undefined;
+  }
+
+  return String((error as { code?: unknown }).code);
+}
+
+function isRetryableRpcError(error: unknown) {
+  const code = getErrorCode(error);
+  const message = getErrorMessage(error).toLowerCase();
+
+  return (
+    code === 'ECONNRESET' ||
+    code === 'ETIMEDOUT' ||
+    code === 'ECONNREFUSED' ||
+    message.includes('socket hang up') ||
+    message.includes('timeout') ||
+    message.includes('network error')
+  );
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function hasContractCode(hre: HardhatRuntimeEnvironment, address: string) {
+  const code = await hre.ethers.provider.getCode(address);
+  return code !== '0x';
+}
+
+async function waitForTransactionWithRetry(
+  hre: HardhatRuntimeEnvironment,
+  txHash: string,
+  label: string
+): Promise<ContractReceipt> {
+  const attempts = 8;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const receipt = await hre.ethers.provider.waitForTransaction(txHash, 1, 120_000);
+      if (receipt) {
+        return receipt;
+      }
+    } catch (error) {
+      if (!isRetryableRpcError(error) || attempt === attempts) {
+        throw error;
+      }
+
+      console.warn(
+        `${label}: RPC error while waiting for ${txHash}; retrying (${attempt}/${attempts})`
+      );
+      console.warn(getErrorMessage(error));
+    }
+
+    await delay(5_000 * attempt);
+  }
+
+  throw new Error(`${label}: timed out waiting for ${txHash}; rerun deploy to resume`);
+}
+
+async function confirmDeployment(contractName: string, address: string, txHash: string) {
+  if (!activeDeployState) {
+    return;
+  }
+
+  const receipt = await waitForTransactionWithRetry(activeDeployState.hre, txHash, contractName);
+  if (!receipt.status) {
+    throw new Error(`${contractName} deployment failed: ${txHash}`);
+  }
+
+  rememberDeploy(contractName, { address, txHash, confirmed: true });
+}
+
+async function runOnceTransaction(
+  transactionName: string,
+  address: string,
+  send: () => Promise<{ hash: string }>
+): Promise<ContractReceipt> {
+  const context = activeDeployState;
+  if (!context) {
+    throw new Error(`${transactionName}: deploy state unavailable`);
+  }
+
+  const previous = context?.state.transactions?.[transactionName];
+
+  if (context && previous?.txHash) {
+    console.log(`${transactionName} resuming tx: ${previous.txHash}`);
+    const receipt = await waitForTransactionWithRetry(context.hre, previous.txHash, transactionName);
+    if (!receipt.status) {
+      throw new Error(`${transactionName} failed: ${previous.txHash}`);
+    }
+
+    rememberTransaction(transactionName, {
+      address: previous.address,
+      txHash: previous.txHash,
+      confirmed: true,
+    });
+    return receipt;
+  }
+
+  const tx = await send();
+  console.log('------ tx:', tx.hash, ' ------');
+  rememberTransaction(transactionName, { address, txHash: tx.hash, confirmed: false });
+
+  const receipt = await waitForTransactionWithRetry(context.hre, tx.hash, transactionName);
+  if (!receipt.status) {
+    throw new Error(`${transactionName} failed: ${tx.hash}`);
+  }
+
+  rememberTransaction(transactionName, { address, txHash: tx.hash, confirmed: true });
+  return receipt;
+}
+
+async function deployOrResumeContract(
+  contractName: string,
+  factory: ContractFactory,
+  constructorArgs: Array<unknown> = []
+): Promise<Contract> {
+  const context = activeDeployState;
+  const previous = context?.state.contracts[contractName];
+
+  if (context && previous) {
+    if (await hasContractCode(context.hre, previous.address)) {
+      console.log(`${contractName} resumed at: ${previous.address}`);
+      return factory.attach(previous.address);
+    }
+
+    if (previous.txHash) {
+      console.log(`${contractName} waiting for previous tx: ${previous.txHash}`);
+      await confirmDeployment(contractName, previous.address, previous.txHash);
+      if (await hasContractCode(context.hre, previous.address)) {
+        console.log(`${contractName} resumed at: ${previous.address}`);
+        return factory.attach(previous.address);
+      }
+    }
+
+    console.warn(`${contractName} checkpoint had no on-chain code; redeploying`);
+  }
+
+  const contract = await factory.deploy(...constructorArgs);
+  console.log('------ tx:', contract.address, ' ------');
+  rememberDeploy(contractName, {
+    address: contract.address,
+    txHash: contract.deployTransaction.hash,
+    confirmed: false,
+  });
+
+  if (context) {
+    await confirmDeployment(contractName, contract.address, contract.deployTransaction.hash);
+  } else {
+    await contract.deployTransaction.wait();
+  }
+
+  console.log(`${contractName} deployed to: ${contract.address}`);
+  return contract;
+}
 
 task('deploy', 'deploy all contracts')
   .addOptionalParam('whitelist', 'override the whitelist', undefined, types.boolean)
@@ -63,6 +291,9 @@ async function deploy(
     );
   }
 
+  activeDeployState = loadDeployState(hre);
+  console.log(`deployment checkpoint: ${activeDeployState.filePath}`);
+
   const [diamond, diamondInit, initReceipt] = await deployAndCut(
     { ownerAddress: deployer.address, whitelistEnabled, initializers: hre.initializers },
     hre
@@ -80,24 +311,27 @@ async function deploy(
   // Note Ive seen `ProviderError: Internal error` when not enough money...
   console.log(`funding whitelist with ${args.fund}`);
 
-  const tx = await deployer.sendTransaction({
-    to: diamond.address,
-    value: hre.ethers.utils.parseEther(args.fund.toString()),
-  });
-  console.log('------ tx:', tx.hash, ' ------');
-  await tx.wait();
+  if (args.fund > 0) {
+    await runOnceTransaction(`fundDiamond:${args.fund}`, diamond.address, () =>
+      deployer.sendTransaction({
+        to: diamond.address,
+        value: hre.ethers.utils.parseEther(args.fund.toString()),
+      })
+    );
 
-  console.log(
-    `Sent ${args.fund} to diamond contract (${diamond.address}) to fund drips in whitelist facet`
-  );
+    console.log(
+      `Sent ${args.fund} to diamond contract (${diamond.address}) to fund drips in whitelist facet`
+    );
+  }
 
   // give all contract administration over to an admin adress if was provided
-  if (hre.ADMIN_PUBLIC_ADDRESS) {
+  const adminPublicAddress = hre.ADMIN_PUBLIC_ADDRESS;
+  if (adminPublicAddress) {
     const ownership = await hre.ethers.getContractAt('DarkForest', diamond.address);
-    const tx = await ownership.transferOwnership(hre.ADMIN_PUBLIC_ADDRESS);
-    console.log('------ tx:', tx.hash, ' ------');
-    await tx.wait();
-    console.log(`transfered diamond ownership to ${hre.ADMIN_PUBLIC_ADDRESS}`);
+    await runOnceTransaction(`transferOwnership:${adminPublicAddress}`, diamond.address, () =>
+      ownership.transferOwnership(adminPublicAddress)
+    );
+    console.log(`transfered diamond ownership to ${adminPublicAddress}`);
   }
 
   if (args.subgraph) {
@@ -346,12 +580,9 @@ export async function deployAndCut(
     initializers,
   ]);
 
-  const initTx = await diamondCut.diamondCut(toCut, initAddress, initFunctionCall);
-  console.log('------ tx:', initTx.hash, ' ------');
-  const initReceipt = await initTx.wait();
-  if (!initReceipt.status) {
-    throw Error(`Diamond cut failed: ${initTx.hash}`);
-  }
+  const initReceipt = await runOnceTransaction('diamondCut:init', diamond.address, () =>
+    diamondCut.diamondCut(toCut, initAddress, initFunctionCall)
+  );
   console.log('Completed diamond cut');
 
   return [diamond, diamondInit, initReceipt] as const;
@@ -359,11 +590,7 @@ export async function deployAndCut(
 
 export async function deployGetterOneFacet({ }, { }: Libraries, hre: HardhatRuntimeEnvironment) {
   const factory = await hre.ethers.getContractFactory('DFGetterOneFacet');
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log('DFGetterOneFacet deployed to:', contract.address);
-  return contract;
+  return deployOrResumeContract('DFGetterOneFacet', factory);
 }
 
 export async function deployGetterTwoFacet(
@@ -376,11 +603,7 @@ export async function deployGetterTwoFacet(
       LibGameUtils,
     },
   });
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log('DFGetterTwoFacet deployed to:', contract.address);
-  return contract;
+  return deployOrResumeContract('DFGetterTwoFacet', factory);
 }
 
 export async function deployAdminFacet(
@@ -395,47 +618,27 @@ export async function deployAdminFacet(
       LibPlanet,
     },
   });
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFAdminFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFAdminFacet', factory);
 }
 
 export async function deployDebugFacet({ }, { }: Libraries, hre: HardhatRuntimeEnvironment) {
   const factory = await hre.ethers.getContractFactory('DFDebugFacet');
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFDebugFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFDebugFacet', factory);
 }
 
 export async function deployWhitelistFacet({ }, { }: Libraries, hre: HardhatRuntimeEnvironment) {
   const factory = await hre.ethers.getContractFactory('DFWhitelistFacet');
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFWhitelistFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFWhitelistFacet', factory);
 }
 
 export async function deployRewardFacet({ }, { }: Libraries, hre: HardhatRuntimeEnvironment) {
   const factory = await hre.ethers.getContractFactory('DFRewardFacet');
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFRewardFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFRewardFacet', factory);
 }
 
 export async function deployVerifierFacet({ }, { }: Libraries, hre: HardhatRuntimeEnvironment) {
   const factory = await hre.ethers.getContractFactory('DFVerifierFacet');
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFVerifierFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFVerifierFacet', factory);
 }
 
 export async function deployArtifactFacet(
@@ -451,30 +654,19 @@ export async function deployArtifactFacet(
       LibPlanet,
     },
   });
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFArtifactFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFArtifactFacet', factory);
 }
 
 export async function deployLibraries({ }, hre: HardhatRuntimeEnvironment) {
   const LibGameUtilsFactory = await hre.ethers.getContractFactory('LibGameUtils');
-  const LibGameUtils = await LibGameUtilsFactory.deploy();
-  console.log('------ tx:', LibGameUtils.address, ' ------');
-  console.log(LibGameUtils.deployTransaction);
-  await LibGameUtils.deployTransaction.wait();
-  console.log(`LibGameUtils deployed to: ${LibGameUtils.address}`);
+  const LibGameUtils = await deployOrResumeContract('LibGameUtils', LibGameUtilsFactory);
 
   const LibLazyUpdateFactory = await hre.ethers.getContractFactory('LibLazyUpdate', {
     libraries: {
       LibGameUtils: LibGameUtils.address,
     },
   });
-  const LibLazyUpdate = await LibLazyUpdateFactory.deploy();
-  console.log('------ tx:', LibGameUtils.address, ' ------');
-  await LibLazyUpdate.deployTransaction.wait();
-  console.log(`LibLazyUpdate deployed to: ${LibLazyUpdate.address}`);
+  const LibLazyUpdate = await deployOrResumeContract('LibLazyUpdate', LibLazyUpdateFactory);
 
   const LibArtifactUtilsFactory = await hre.ethers.getContractFactory('LibArtifactUtils', {
     libraries: {
@@ -482,20 +674,20 @@ export async function deployLibraries({ }, hre: HardhatRuntimeEnvironment) {
     },
   });
 
-  const LibArtifactUtils = await LibArtifactUtilsFactory.deploy();
-  console.log('------ tx:', LibArtifactUtils.address, ' ------');
-  await LibArtifactUtils.deployTransaction.wait();
-  console.log(`LibArtifactUtils deployed to: ${LibArtifactUtils.address}`);
+  const LibArtifactUtils = await deployOrResumeContract(
+    'LibArtifactUtils',
+    LibArtifactUtilsFactory
+  );
 
   const LibArtifactExtendUtilsFactory = await hre.ethers.getContractFactory(
     'LibArtifactExtendUtils',
     {}
   );
 
-  const LibArtifactExtendUtils = await LibArtifactExtendUtilsFactory.deploy();
-  console.log('------ tx:', LibArtifactExtendUtils.address, ' ------');
-  await LibArtifactExtendUtils.deployTransaction.wait();
-  console.log(`LibArtifactExtendUtils deployed to: ${LibArtifactExtendUtils.address}`);
+  const LibArtifactExtendUtils = await deployOrResumeContract(
+    'LibArtifactExtendUtils',
+    LibArtifactExtendUtilsFactory
+  );
 
   const LibPlanetFactory = await hre.ethers.getContractFactory('LibPlanet', {
     libraries: {
@@ -503,10 +695,7 @@ export async function deployLibraries({ }, hre: HardhatRuntimeEnvironment) {
       LibLazyUpdate: LibLazyUpdate.address,
     },
   });
-  const LibPlanet = await LibPlanetFactory.deploy();
-  console.log('------ tx:', LibPlanet.address, ' ------');
-  await LibPlanet.deployTransaction.wait();
-  console.log(`LibPlanet deployed to: ${LibPlanet.address}`);
+  const LibPlanet = await deployOrResumeContract('LibPlanet', LibPlanetFactory);
 
   return {
     LibGameUtils: LibGameUtils.address,
@@ -529,11 +718,7 @@ export async function deployCoreFacet(
       LibArtifactUtils,
     },
   });
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFCoreFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFCoreFacet', factory);
 }
 
 export async function deployMoveFacet(
@@ -548,11 +733,7 @@ export async function deployMoveFacet(
       LibPlanet,
     },
   });
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFMoveFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFMoveFacet', factory);
 }
 
 export async function deployCaptureFacet(
@@ -565,11 +746,7 @@ export async function deployCaptureFacet(
       LibPlanet,
     },
   });
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFCaptureFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFCaptureFacet', factory);
 }
 
 export async function deployPinkBombFacet(
@@ -584,11 +761,7 @@ export async function deployPinkBombFacet(
       LibArtifactUtils,
     },
   });
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFPinkBombFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFPinkBombFacet', factory);
 }
 
 export async function deployKardashevFacet(
@@ -603,11 +776,7 @@ export async function deployKardashevFacet(
       LibArtifactUtils,
     },
   });
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFKardashevFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFKardashevFacet', factory);
 }
 
 export async function deployTradeFacet(
@@ -623,31 +792,19 @@ export async function deployTradeFacet(
       LibLazyUpdate,
     },
   });
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFTradeFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFTradeFacet', factory);
 }
 
 export async function deployUnionFacet({ }, { }: Libraries, hre: HardhatRuntimeEnvironment) {
   const factory = await hre.ethers.getContractFactory('DFUnionFacet', {
     libraries: {},
   });
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFUnionFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFUnionFacet', factory);
 }
 
 async function deployDiamondCutFacet({ }, libraries: Libraries, hre: HardhatRuntimeEnvironment) {
   const factory = await hre.ethers.getContractFactory('DiamondCutFacet');
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DiamondCutFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DiamondCutFacet', factory);
 }
 
 async function deployDiamond(
@@ -662,11 +819,7 @@ async function deployDiamond(
   hre: HardhatRuntimeEnvironment
 ) {
   const factory = await hre.ethers.getContractFactory('Diamond');
-  const contract = await factory.deploy(ownerAddress, diamondCutAddress);
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`Diamond deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('Diamond', factory, [ownerAddress, diamondCutAddress]);
 }
 
 async function deployDiamondInit({ }, { LibGameUtils }: Libraries, hre: HardhatRuntimeEnvironment) {
@@ -675,43 +828,27 @@ async function deployDiamondInit({ }, { LibGameUtils }: Libraries, hre: HardhatR
   const factory = await hre.ethers.getContractFactory('DFInitialize', {
     libraries: { LibGameUtils },
   });
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFInitialize deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFInitialize', factory);
 }
 
 async function deployDiamondLoupeFacet({ }, { }: Libraries, hre: HardhatRuntimeEnvironment) {
   const factory = await hre.ethers.getContractFactory('DiamondLoupeFacet');
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DiamondLoupeFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DiamondLoupeFacet', factory);
 }
 
 async function deployOwnershipFacet({ }, { }: Libraries, hre: HardhatRuntimeEnvironment) {
   const factory = await hre.ethers.getContractFactory('OwnershipFacet');
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`OwnershipFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('OwnershipFacet', factory);
 }
 
 export async function deployLobbyFacet({ }, { }: Libraries, hre: HardhatRuntimeEnvironment) {
   const factory = await hre.ethers.getContractFactory('DFLobbyFacet');
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFLobbyFacet deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFLobbyFacet', factory);
 }
 
 async function deployDiamondInitSec(
   { },
-  { LibGameUtils }: Libraries,
+  { }: Libraries,
   hre: HardhatRuntimeEnvironment
 ) {
   // DFInitialize provides a function that is called when the diamond is upgraded to initialize state variables
@@ -719,21 +856,15 @@ async function deployDiamondInitSec(
   const factory = await hre.ethers.getContractFactory('DFInitializeSec', {
     libraries: {},
   });
-  const contract = await factory.deploy();
-  console.log('------ tx:', contract.address, ' ------');
-  await contract.deployTransaction.wait();
-  console.log(`DFInitializeSec deployed to: ${contract.address}`);
-  return contract;
+  return deployOrResumeContract('DFInitializeSec', factory);
 }
 
 task('diamondCut', 'diamondCut').setAction(diamondCut);
 
-async function diamondCut(args: {}, hre: HardhatRuntimeEnvironment) {
+async function diamondCut(_args: Record<string, never>, hre: HardhatRuntimeEnvironment) {
   const [deployer] = await hre.ethers.getSigners();
   const beginBalance = await deployer.getBalance();
   console.log('begin balance:', beginBalance.toString());
-
-  const ownerAddress = deployer.address;
 
   const diamond = await hre.ethers.getContractAt('DarkForest', hre.contracts.CONTRACT_ADDRESS);
 

@@ -2,10 +2,7 @@
 // Auto-attack when source planet has enough energy!
 // original author: TBC
 // enhancements in 2022: https://twitter.com/davidryan59
-//@ts-ignore
-import { getPlanetName } from 'https://cdn.skypack.dev/@darkforest_eth/procedural'; // ----------------------------------------
-import { isUnconfirmedMoveTx } from 'https://cdn.skypack.dev/@darkforest_eth/serde'; //@ts-ignore
-import { PlanetType, SpaceType } from 'https://cdn.skypack.dev/@darkforest_eth/types'; //@ts-ignore
+// ----------------------------------------
 import {
   html,
   render,
@@ -13,6 +10,24 @@ import {
   useLayoutEffect,
   useState,
 } from 'https://unpkg.com/htm/preact/standalone.module.js';
+
+const PlanetType = {
+  PLANET: 0,
+  SILVER_MINE: 1,
+  RUINS: 2,
+  TRADING_POST: 3,
+  SILVER_BANK: 4,
+};
+
+const SpaceType = {
+  NEBULA: 0,
+  SPACE: 1,
+};
+
+const isUnconfirmedMoveTx = (tx) => tx?.intent?.methodName === 'move';
+
+const getPlanetName = (planet) =>
+  planet?.name || planet?.locationId?.slice?.(0, 6) || planet?.locationId || 'Unknown';
 
 // User Configurable Options
 // Control how much energy gets sent, and when

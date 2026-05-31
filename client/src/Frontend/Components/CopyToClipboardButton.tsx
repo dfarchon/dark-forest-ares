@@ -28,7 +28,7 @@ export function CopyToClipboardButton({
     async (e: React.SyntheticEvent) => {
       e.stopPropagation();
       try {
-        await navigator.clipboard.writeText(text);
+        await copyTextToClipboard(text);
         setStatus('success');
       } catch (err) {
         console.error(err);
@@ -47,6 +47,38 @@ export function CopyToClipboardButton({
       {status === 'failure' ? <Hint $tone='failure'>{failureMessage}</Hint> : null}
     </Wrap>
   );
+}
+
+async function copyTextToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch (err) {
+      console.warn('navigator.clipboard.writeText failed, falling back to execCommand', err);
+    }
+  }
+
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.setAttribute('readonly', '');
+  textArea.style.position = 'fixed';
+  textArea.style.top = '0';
+  textArea.style.left = '0';
+  textArea.style.opacity = '0';
+
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    const copied = document.execCommand('copy');
+    if (!copied) {
+      throw new Error('document.execCommand("copy") returned false');
+    }
+  } finally {
+    document.body.removeChild(textArea);
+  }
 }
 
 const Wrap = styled.span`

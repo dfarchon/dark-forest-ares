@@ -32,9 +32,8 @@ export function TwitterVerifyPane({ visible, onClose }: { visible: boolean; onCl
       const tweetText = await uiManager.generateVerificationTweet(twitterHandleInputValue);
       // const str = `Verify my @dfares v0.6 account (https://zkga.me):
       // ${tweetText}`;
-      const str = `Verifying my DF ARES v0.1 Round 4 account (https://dfares.xyz/)🌸\n @darkforest_eth Community Round hosted by @DFArchon: ${tweetText}`;
+      const str = `Verifying my DF ARES v0.1 R5 account (https://ares.dfpunk.xyz/)🌸\n @darkforest_eth Community Round hosted by @DFArchon: ${tweetText}`;
 
-      // const str = `Verifying my DFAres v0.1 Round 4 account (https://dfares.xyz/)🩷\n @darkforest_eth community round hosted by @DFArchon \n ${tweetText}`;
       window.open(`https://twitter.com/intent/tweet?hashtags=darkforest&text=${encodeURI(str)}`);
     }
   };
