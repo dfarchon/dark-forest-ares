@@ -64,26 +64,37 @@ export default function ControllableCanvas() {
   }, [modalManager]);
 
   const doResize = useCallback(() => {
-    const uiEmitter: UIEmitter = UIEmitter.getInstance();
     if (canvasRef.current) {
       setWidth(canvasRef.current.clientWidth);
       setHeight(canvasRef.current.clientHeight);
-      uiEmitter.emit(UIEmitterEvent.WindowResize);
     }
   }, [canvasRef]);
 
-  // TODO fix this
   useLayoutEffect(() => {
-    if (canvasRef.current) doResize();
-  }, [
-    // dep array gives eslint issues, but it's fine i tested it i swear - Alan
-    canvasRef,
-    doResize,
-    /* eslint-disable react-hooks/exhaustive-deps */
-    canvasRef.current?.offsetWidth,
-    canvasRef.current?.offsetHeight,
-    /* eslint-enable react-hooks/exhaustive-deps */
-  ]);
+    doResize();
+  }, [doResize]);
+
+  // Re-read the canvas size and observe future layout changes (e.g. when the
+  // game window first becomes visible) so the viewport always picks up real
+  // dimensions without requiring manual interaction.
+  useEffect(() => {
+    const target = canvasRef.current;
+    if (!target || typeof ResizeObserver === 'undefined') return;
+
+    const resizeObserver = new ResizeObserver(() => doResize());
+    resizeObserver.observe(target);
+
+    return () => resizeObserver.disconnect();
+  }, [doResize, canvasRef]);
+
+  // Emit WindowResize only after React has committed the new width/height onto
+  // the canvas element, so Viewport.onWindowResize reads the up-to-date
+  // canvas.width/height (avoids the blank-map-until-scroll race).
+  useEffect(() => {
+    if (width > 0 && height > 0) {
+      UIEmitter.getInstance().emit(UIEmitterEvent.WindowResize);
+    }
+  }, [width, height]);
 
   useEffect(() => {
     if (!gameUIManager) return;
@@ -92,11 +103,6 @@ export default function ControllableCanvas() {
     // }
 
     const uiEmitter: UIEmitter = UIEmitter.getInstance();
-
-    function onResize() {
-      doResize();
-      uiEmitter.emit(UIEmitterEvent.WindowResize);
-    }
 
     const onWheel = (e: WheelEvent): void => {
       e.preventDefault();
@@ -132,7 +138,7 @@ export default function ControllableCanvas() {
     // https://www.chromestatus.com/features/6662647093133312
     canvas.addEventListener('wheel', onWheel);
     // fCanvas.on("mouse:wheel", onWheel);
-    window.addEventListener('resize', onResize);
+    window.addEventListener('resize', doResize);
 
     uiEmitter.on(UIEmitterEvent.UIChange, doResize);
 
@@ -140,7 +146,7 @@ export default function ControllableCanvas() {
       Viewport.destroyInstance();
       Renderer.destroy();
       canvas.removeEventListener('wheel', onWheel);
-      window.removeEventListener('resize', onResize);
+      window.removeEventListener('resize', doResize);
       uiEmitter.removeListener(UIEmitterEvent.UIChange, doResize);
     };
   }, [gameUIManager, doResize, canvasRef, glRef, bufferRef, evtRef]);

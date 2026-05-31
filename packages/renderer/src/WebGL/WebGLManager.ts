@@ -26,6 +26,11 @@ export class WebGLManager {
   public setProjectionMatrix(): void {
     const height = this.canvas.height;
     const width = this.canvas.width;
+
+    // Guard against a transient zero/NaN-sized canvas so 2/width and -2/height
+    // never produce Infinity/NaN and corrupt the projection for a frame.
+    if (!(width > 0) || !(height > 0)) return;
+
     const depth = 100; // arbitrary # which represents max zidx
 
     // projects xy onto clip space and also compresses z
