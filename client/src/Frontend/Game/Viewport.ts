@@ -405,9 +405,13 @@ class Viewport {
   }
 
   onWindowResize() {
-    this.viewportHeight = this.canvas.height;
-    this.viewportWidth = this.canvas.width;
-    this.scale = this.widthInWorldUnits / this.viewportWidth;
+    const viewportHeight = this.canvas.height;
+    const viewportWidth = this.canvas.width;
+    if (!(viewportWidth > 0) || !(viewportHeight > 0)) return;
+
+    this.viewportHeight = viewportHeight;
+    this.viewportWidth = viewportWidth;
+    this.setWorldWidth(this.widthInWorldUnits);
   }
 
   // Camera utility functions
@@ -503,6 +507,7 @@ class Viewport {
   public setWorldHeight(height: number): void {
     this.heightInWorldUnits = height;
     this.widthInWorldUnits = (height * this.viewportWidth) / this.viewportHeight;
+    this.scale = this.widthInWorldUnits / this.viewportWidth;
     this.updateDiagnostics();
   }
 

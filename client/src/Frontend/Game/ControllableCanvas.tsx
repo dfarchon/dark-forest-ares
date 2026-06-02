@@ -35,10 +35,27 @@ const CanvasWrapper = styled.div`
   }
 `;
 
+const syncCanvasBackingSize = (
+  source: HTMLCanvasElement,
+  canvases: HTMLCanvasElement[]
+): { width: number; height: number } | undefined => {
+  const width = source.clientWidth;
+  const height = source.clientHeight;
+  if (!(width > 0) || !(height > 0)) return undefined;
+
+  canvases.forEach((canvas) => {
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+  });
+
+  return { width, height };
+};
+
 export default function ControllableCanvas() {
   // html canvas element width and height. viewport dimensions are tracked by viewport obj
   const [width, setWidth] = useState(window.innerWidth);
   const [height, setHeight] = useState(window.innerHeight);
+  const [canvasReady, setCanvasReady] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const glRef = useRef<HTMLCanvasElement | null>(null);
@@ -65,8 +82,11 @@ export default function ControllableCanvas() {
 
   const doResize = useCallback(() => {
     if (canvasRef.current) {
-      setWidth(canvasRef.current.clientWidth);
-      setHeight(canvasRef.current.clientHeight);
+      const canvasWidth = canvasRef.current.clientWidth;
+      const canvasHeight = canvasRef.current.clientHeight;
+      setWidth(canvasWidth);
+      setHeight(canvasHeight);
+      setCanvasReady((isReady) => isReady || (canvasWidth > 0 && canvasHeight > 0));
     }
   }, [canvasRef]);
 
@@ -97,10 +117,23 @@ export default function ControllableCanvas() {
   }, [width, height]);
 
   useEffect(() => {
-    if (!gameUIManager) return;
+    if (!gameUIManager || !canvasReady) return;
     // if (!fCanvas && canvasRef.current) {
     //   // setFCanvas(new fabric.Canvas(canvasRef.current));
     // }
+
+    // const canvas = fCanvas?.getSelectionElement();
+    const canvas = evtRef.current;
+    if (!canvas || !canvasRef.current || !glRef.current || !bufferRef.current) return;
+
+    const canvasSize = syncCanvasBackingSize(canvas, [canvasRef.current, glRef.current]);
+    if (!canvasSize) {
+      doResize();
+      return;
+    }
+
+    setWidth(canvasSize.width);
+    setHeight(canvasSize.height);
 
     const uiEmitter: UIEmitter = UIEmitter.getInstance();
 
@@ -109,10 +142,6 @@ export default function ControllableCanvas() {
       const { deltaY } = e;
       uiEmitter.emit(UIEmitterEvent.CanvasScroll, deltaY);
     };
-
-    // const canvas = fCanvas?.getSelectionElement();
-    const canvas = evtRef.current;
-    if (!canvas || !canvasRef.current || !glRef.current || !bufferRef.current) return;
 
     // This zooms your home world in really close to show the awesome details
     // TODO: Store this as it changes and re-initialize to that if stored
@@ -149,7 +178,7 @@ export default function ControllableCanvas() {
       window.removeEventListener('resize', doResize);
       uiEmitter.removeListener(UIEmitterEvent.UIChange, doResize);
     };
-  }, [gameUIManager, doResize, canvasRef, glRef, bufferRef, evtRef]);
+  }, [gameUIManager, canvasReady, doResize, canvasRef, glRef, bufferRef, evtRef]);
 
   // attach event listeners
   useEffect(() => {
