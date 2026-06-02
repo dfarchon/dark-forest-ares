@@ -23,6 +23,8 @@ import {
   addToChunkMap,
   getChunkKey,
   getChunkOfSideLengthContainingPoint,
+  isChunk,
+  isPersistedChunk,
   toExploredChunk,
   toPersistedChunk,
 } from '../Miner/ChunkUtils';
@@ -182,22 +184,65 @@ class PersistentChunkStore implements ChunkStore {
     // and then bulk query for keys starting with 0, then 1, then 2, etc.
     // see the `getBucket` function in `ChunkUtils.ts` for more information.
     const borders = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ~';
-    let chunkCount = 0;
+    let loaded = 0;
+    let skipped = 0;
+    let deleted = 0;
+
+    const deletePersistedChunk = async (chunkKey: IDBValidKey | undefined): Promise<void> => {
+      if (chunkKey === undefined) {
+        return;
+      }
+
+      try {
+        await this.db.delete(ObjectStore.BOARD, chunkKey);
+        deleted += 1;
+      } catch (e) {
+        console.warn('Unable to delete invalid persisted map chunk; leaving it in storage.', e);
+      }
+    };
 
     for (let idx = 0; idx < borders.length - 1; idx += 1) {
-      const bucketOfChunks = await this.db.getAll(
-        ObjectStore.BOARD,
-        IDBKeyRange.bound(borders[idx], borders[idx + 1], false, true)
-      );
+      let bucketKeys: IDBValidKey[];
+      let bucketOfChunks: unknown[];
+      const keyRange = IDBKeyRange.bound(borders[idx], borders[idx + 1], false, true);
 
-      bucketOfChunks.forEach((chunk: PersistedChunk) => {
-        this.addChunk(toExploredChunk(chunk), false);
-      });
+      try {
+        bucketKeys = await this.db.getAllKeys(ObjectStore.BOARD, keyRange);
+        bucketOfChunks = await this.db.getAll(ObjectStore.BOARD, keyRange);
+      } catch (e) {
+        console.warn(
+          `Unable to load persisted map chunks for bucket ${borders[idx]}; skipping bucket.`,
+          e
+        );
+        continue;
+      }
 
-      chunkCount += bucketOfChunks.length;
+      for (let chunkIdx = 0; chunkIdx < bucketOfChunks.length; chunkIdx += 1) {
+        const chunk = bucketOfChunks[chunkIdx];
+        const chunkKey = bucketKeys[chunkIdx];
+
+        try {
+          if (!isPersistedChunk(chunk)) {
+            skipped += 1;
+            await deletePersistedChunk(chunkKey);
+            continue;
+          }
+
+          this.addChunk(toExploredChunk(chunk), false);
+          loaded += 1;
+        } catch (e) {
+          skipped += 1;
+          console.warn('Unable to load persisted map chunk; skipping chunk.', e);
+          await deletePersistedChunk(chunkKey);
+        }
+      }
     }
 
-    console.log(`loaded ${chunkCount} chunks from local storage`);
+    console.log(`loaded ${loaded} chunks from local storage`);
+
+    if (skipped > 0) {
+      console.warn(`Skipped ${skipped} invalid persisted map chunks; deleted ${deleted}.`);
+    }
   }
 
   /**
@@ -369,6 +414,10 @@ class PersistentChunkStore implements ChunkStore {
    * i.e. it already exists in persistent storage.
    */
   public addChunk(chunk: Chunk, persistChunk = true): void {
+    if (!isChunk(chunk)) {
+      throw new Error('Invalid chunk data');
+    }
+
     if (this.hasMinedChunk(chunk.chunkFootprint)) {
       return;
     }

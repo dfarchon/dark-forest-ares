@@ -137,6 +137,7 @@ import {
   RevealCountdownInfo,
 } from '../../_types/global/GlobalTypes';
 import MinerManager, { HomePlanetMinerChunkStore, MinerManagerEvent } from '../Miner/MinerManager';
+import { isChunk } from '../Miner/ChunkUtils';
 import {
   MiningPattern,
   SpiralPattern,
@@ -4535,12 +4536,30 @@ class BaseGameManager extends EventEmitter {
    * to load all of the associated planet data in an efficient manner.
    */
   async bulkAddNewChunks(chunks: Chunk[]): Promise<void> {
+    if (!Array.isArray(chunks)) {
+      throw new Error('Invalid map data');
+    }
+
     this.terminal.current?.println(
       'IMPORTING MAP: if you are importing a large map, this may take a while...'
     );
     const planetIdsToUpdate: LocationId[] = [];
+    let skippedChunks = 0;
+
     for (const chunk of chunks) {
-      this.persistentChunkStore.addChunk(chunk, true);
+      if (!isChunk(chunk)) {
+        skippedChunks += 1;
+        continue;
+      }
+
+      try {
+        this.persistentChunkStore.addChunk(chunk, true);
+      } catch (e) {
+        console.warn('Unable to import map chunk; skipping chunk.', e);
+        skippedChunks += 1;
+        continue;
+      }
+
       for (const planetLocation of chunk.planetLocations) {
         this.entityStore.addPlanetLocation(planetLocation);
 
@@ -4550,6 +4569,14 @@ class BaseGameManager extends EventEmitter {
         }
       }
     }
+
+    if (skippedChunks > 0) {
+      this.terminal.current?.println(
+        `Skipped ${skippedChunks} invalid map chunks.`,
+        TerminalTextStyle.Red
+      );
+    }
+
     this.terminal.current?.println(
       `downloading data for ${planetIdsToUpdate.length} planets...`,
       TerminalTextStyle.Sub

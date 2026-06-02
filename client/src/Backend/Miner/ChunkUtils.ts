@@ -1,6 +1,75 @@
 import { Chunk, Rectangle, WorldCoords, WorldLocation } from '@dfares/types';
 import { BucketId, ChunkId, PersistedChunk } from '../../_types/darkforest/api/ChunkStoreTypes';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+
+const isWorldCoords = (value: unknown): value is WorldCoords => {
+  return isRecord(value) && isFiniteNumber(value.x) && isFiniteNumber(value.y);
+};
+
+const isRectangle = (value: unknown): value is Rectangle => {
+  return (
+    isRecord(value) &&
+    isWorldCoords(value.bottomLeft) &&
+    isFiniteNumber(value.sideLength) &&
+    value.sideLength > 0
+  );
+};
+
+const isWorldLocation = (value: unknown): value is WorldLocation => {
+  return (
+    isRecord(value) &&
+    isWorldCoords(value.coords) &&
+    typeof value.hash === 'string' &&
+    isFiniteNumber(value.perlin) &&
+    isFiniteNumber(value.biomebase)
+  );
+};
+
+/**
+ * Validates imported or worker-generated chunk data before it enters the shared chunk store.
+ */
+export const isChunk = (value: unknown): value is Chunk => {
+  return (
+    isRecord(value) &&
+    isRectangle(value.chunkFootprint) &&
+    Array.isArray(value.planetLocations) &&
+    value.planetLocations.every(isWorldLocation) &&
+    isFiniteNumber(value.perlin)
+  );
+};
+
+const isPersistedLocation = (value: unknown): value is PersistedChunk['l'][number] => {
+  return (
+    isRecord(value) &&
+    isFiniteNumber(value.x) &&
+    isFiniteNumber(value.y) &&
+    typeof value.h === 'string' &&
+    isFiniteNumber(value.p) &&
+    isFiniteNumber(value.b)
+  );
+};
+
+/**
+ * Validates compact chunk records read from IndexedDB before expanding them into runtime chunks.
+ */
+export const isPersistedChunk = (value: unknown): value is PersistedChunk => {
+  return (
+    isRecord(value) &&
+    isFiniteNumber(value.x) &&
+    isFiniteNumber(value.y) &&
+    isFiniteNumber(value.s) &&
+    value.s > 0 &&
+    Array.isArray(value.l) &&
+    value.l.every(isPersistedLocation) &&
+    isFiniteNumber(value.p)
+  );
+};
+
 /**
  * Deterministically assigns a bucket ID to a rectangle, based on its position and size in the
  * universe. This is kind of like a shitty hash function. Its purpose is to distribute chunks
