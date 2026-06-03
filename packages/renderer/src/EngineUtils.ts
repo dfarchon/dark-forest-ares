@@ -181,4 +181,13 @@ export class EngineUtils {
 
   public static getPlanetZIndex = (planet: Planet): number =>
     RenderZIndex.Planets + planet.planetLevel;
+
+  /**
+   * Computes a depth Z value for isometric rendering based on world Y position.
+   * Objects with higher world_y ("further north") get a more negative Z and render behind.
+   */
+  public static getIsoDepthZ(worldY: number, baseZ: number): number {
+    const yOffset = worldY / 1000000;
+    return baseZ - yOffset;
+  }
 }

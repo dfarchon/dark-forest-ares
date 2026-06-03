@@ -5,6 +5,10 @@ import GameUIManager from '../../Backend/GameLogic/GameUIManager';
 import { distL2, vectorLength } from '../../Backend/Utils/Coordinates';
 import UIEmitter, { UIEmitterEvent } from '../Utils/UIEmitter';
 
+// Isometric projection constants (30° angle)
+const ISO_COS = Math.cos(Math.PI / 6); // cos(30°) ≈ 0.866
+const ISO_SIN = Math.sin(Math.PI / 6); // sin(30°) = 0.5
+
 export const getDefaultScroll = (): number => {
   const isFirefox = navigator.userAgent.indexOf('Firefox') > 0;
   return isFirefox ? 1.005 : 1.0006;
@@ -56,6 +60,7 @@ class Viewport {
   diagnosticUpdater?: DiagnosticUpdater;
 
   scale: number;
+  isometric = true;
   private isSending = false;
 
   private constructor(
@@ -330,13 +335,22 @@ class Viewport {
 
     if (this.isPanning && this.mouseLastCoords) {
       // if panning, don't need to emit mouse move event
-      const dx = this.scale * (this.mouseLastCoords.x - canvasCoords.x);
-      const dy = -this.scale * (this.mouseLastCoords.y - canvasCoords.y);
-
-      this.velocity = { x: dx * BASE_VEL, y: dy * BASE_VEL };
-
-      this.centerWorldCoords.x += dx;
-      this.centerWorldCoords.y += dy;
+      if (this.isometric) {
+        const canvasDx = (this.mouseLastCoords.x - canvasCoords.x) * this.scale;
+        const canvasDy = -(this.mouseLastCoords.y - canvasCoords.y) * this.scale;
+        // Inverse isometric transform for the delta
+        const dx = canvasDx / (2 * ISO_COS) + canvasDy / (2 * ISO_SIN);
+        const dy = -canvasDx / (2 * ISO_COS) + canvasDy / (2 * ISO_SIN);
+        this.velocity = { x: dx * BASE_VEL, y: dy * BASE_VEL };
+        this.centerWorldCoords.x += dx;
+        this.centerWorldCoords.y += dy;
+      } else {
+        const dx = this.scale * (this.mouseLastCoords.x - canvasCoords.x);
+        const dy = -this.scale * (this.mouseLastCoords.y - canvasCoords.y);
+        this.velocity = { x: dx * BASE_VEL, y: dy * BASE_VEL };
+        this.centerWorldCoords.x += dx;
+        this.centerWorldCoords.y += dy;
+      }
     } else {
       const worldCoords = this.canvasToWorldCoords(canvasCoords);
       uiEmitter.emit(UIEmitterEvent.WorldMouseMove, worldCoords);
@@ -416,15 +430,36 @@ class Viewport {
 
   // Camera utility functions
   canvasToWorldCoords(canvasCoords: CanvasCoords): WorldCoords {
-    const worldX = this.canvasToWorldX(canvasCoords.x);
-    const worldY = this.canvasToWorldY(canvasCoords.y);
-    return { x: worldX, y: worldY };
+    if (!this.isometric) {
+      return { x: this.canvasToWorldX(canvasCoords.x), y: this.canvasToWorldY(canvasCoords.y) };
+    }
+    // Canvas to isometric view space
+    const isoX = (canvasCoords.x - this.viewportWidth / 2) * this.scale;
+    const isoY = -(canvasCoords.y - this.viewportHeight / 2) * this.scale;
+    // Inverse isometric transform (solve 2x2 linear system)
+    const relX = isoX / (2 * ISO_COS) + isoY / (2 * ISO_SIN);
+    const relY = -isoX / (2 * ISO_COS) + isoY / (2 * ISO_SIN);
+    return {
+      x: relX + this.centerWorldCoords.x,
+      y: relY + this.centerWorldCoords.y,
+    };
   }
 
   worldToCanvasCoords(worldCoords: WorldCoords): CanvasCoords {
-    const canvasX = this.worldToCanvasX(worldCoords.x);
-    const canvasY = this.worldToCanvasY(worldCoords.y);
-    return { x: canvasX, y: canvasY };
+    if (!this.isometric) {
+      return { x: this.worldToCanvasX(worldCoords.x), y: this.worldToCanvasY(worldCoords.y) };
+    }
+    // Relative to camera center
+    const relX = worldCoords.x - this.centerWorldCoords.x;
+    const relY = worldCoords.y - this.centerWorldCoords.y;
+    // Isometric rotation
+    const isoX = (relX - relY) * ISO_COS;
+    const isoY = (relX + relY) * ISO_SIN;
+    // Map to canvas pixels (Y inverted)
+    return {
+      x: isoX / this.scale + this.viewportWidth / 2,
+      y: -isoY / this.scale + this.viewportHeight / 2,
+    };
   }
 
   public worldToCanvasDist(d: number): number {
@@ -452,10 +487,12 @@ class Viewport {
   }
 
   public isInOrAroundViewport(coords: WorldCoords): boolean {
-    if (Math.abs(coords.x - this.centerWorldCoords.x) > 0.6 * this.widthInWorldUnits) {
+    // In isometric view, the visible area is a rotated rhombus, so use a larger tolerance
+    const tolerance = this.isometric ? 1.2 : 0.6;
+    if (Math.abs(coords.x - this.centerWorldCoords.x) > tolerance * this.widthInWorldUnits) {
       return false;
     }
-    if (Math.abs(coords.y - this.centerWorldCoords.y) > 0.6 * this.heightInWorldUnits) {
+    if (Math.abs(coords.y - this.centerWorldCoords.y) > tolerance * this.heightInWorldUnits) {
       return false;
     }
     return true;
@@ -471,6 +508,29 @@ class Viewport {
   }
 
   public intersectsViewport(chunk: Chunk): boolean {
+    if (this.isometric) {
+      // In isometric view, the visible world-space area is a rotated rhombus.
+      // Inverse-transform screen corners to world coords, then use AABB overlap.
+      const corners = [
+        this.canvasToWorldCoords({ x: 0, y: 0 }),
+        this.canvasToWorldCoords({ x: this.viewportWidth, y: 0 }),
+        this.canvasToWorldCoords({ x: 0, y: this.viewportHeight }),
+        this.canvasToWorldCoords({ x: this.viewportWidth, y: this.viewportHeight }),
+      ];
+      const viewLeft = Math.min(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
+      const viewRight = Math.max(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
+      const viewBottom = Math.min(corners[0].y, corners[1].y, corners[2].y, corners[3].y);
+      const viewTop = Math.max(corners[0].y, corners[1].y, corners[2].y, corners[3].y);
+
+      const { bottomLeft, sideLength } = chunk.chunkFootprint;
+      return !(
+        bottomLeft.x > viewRight ||
+        bottomLeft.x + sideLength < viewLeft ||
+        bottomLeft.y > viewTop ||
+        bottomLeft.y + sideLength < viewBottom
+      );
+    }
+
     const chunkLeft = chunk.chunkFootprint.bottomLeft.x;
     const chunkRight = chunkLeft + chunk.chunkFootprint.sideLength;
     const chunkBottom = chunk.chunkFootprint.bottomLeft.y;

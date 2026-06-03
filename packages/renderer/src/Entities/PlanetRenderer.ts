@@ -49,13 +49,15 @@ export class PlanetRenderer
     x1: number,
     y1: number,
     x2: number,
-    y2: number
+    y2: number,
+    worldY?: number
   ) {
     const { position, rectPos, color, color2, color3, props, props2 } = this.attribManagers;
     const cosmetic = getPlanetCosmetic(planet);
 
-    // auto-sorts on GPU
-    const z = EngineUtils.getPlanetZIndex(planet);
+    // auto-sorts on GPU; use Y-based depth for isometric ordering
+    const baseZ = EngineUtils.getPlanetZIndex(planet);
+    const z = worldY !== undefined ? EngineUtils.getIsoDepthZ(worldY, baseZ) : baseZ;
 
     EngineUtils.makeQuadBuffered(this.quad3Buffer, x1, y1, x2, y2, z);
     position.setVertex(this.quad3Buffer, this.verts);
@@ -95,6 +97,6 @@ export class PlanetRenderer
     const x2 = center.x + radius;
     const y2 = center.y + radius;
 
-    this.queuePlanetBodyScreen(planet, radius, x1, y1, x2, y2);
+    this.queuePlanetBodyScreen(planet, radius, x1, y1, x2, y2, centerW.y);
   }
 }

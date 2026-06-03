@@ -117,11 +117,14 @@ export class SpaceRenderer
     const { x: xW, y: yW } = bottomLeft;
 
     const viewport = this.manager.renderer.getViewport();
-    const { x: xC, y: yC } = viewport.worldToCanvasCoords(bottomLeft);
 
-    const dim = viewport.worldToCanvasDist(sideLength);
-    const { x1, y1 } = { x1: xC, y1: yC - dim };
-    const { x2, y2 } = { x2: xC + dim, y2: yC };
+    // Convert all 4 world corners to screen space individually.
+    // In isometric mode this forms a diamond; in 2D mode it's an axis-aligned rect.
+    // This preserves correct vertex-to-worldCoord correspondence for GPU interpolation.
+    const cTL = viewport.worldToCanvasCoords({ x: xW, y: yW + sideLength });
+    const cBL = viewport.worldToCanvasCoords({ x: xW, y: yW });
+    const cTR = viewport.worldToCanvasCoords({ x: xW + sideLength, y: yW + sideLength });
+    const cBR = viewport.worldToCanvasCoords({ x: xW + sideLength, y: yW });
 
     // queue it
     const {
@@ -135,15 +138,18 @@ export class SpaceRenderer
       worldCoords: worldCoordsA,
     } = this.attribManagers;
 
-    EngineUtils.makeQuadVec2Buffered(
-      this.posBuffer,
-      Math.round(x1),
-      Math.round(y1),
-      Math.round(x2),
-      Math.round(y2)
-    );
+    // Build position quad as 2 triangles matching the vertex order of makeQuadVec2Buffered:
+    // Triangle 1: v0(TL), v1(BL), v2(TR)
+    // Triangle 2: v3(TR), v4(BL), v5(BR)
+    this.posBuffer[0] = Math.round(cTL.x); this.posBuffer[1] = Math.round(cTL.y);
+    this.posBuffer[2] = Math.round(cBL.x); this.posBuffer[3] = Math.round(cBL.y);
+    this.posBuffer[4] = Math.round(cTR.x); this.posBuffer[5] = Math.round(cTR.y);
+    this.posBuffer[6] = Math.round(cTR.x); this.posBuffer[7] = Math.round(cTR.y);
+    this.posBuffer[8] = Math.round(cBL.x); this.posBuffer[9] = Math.round(cBL.y);
+    this.posBuffer[10] = Math.round(cBR.x); this.posBuffer[11] = Math.round(cBR.y);
     posA.setVertex(this.posBuffer, this.verts);
 
+    // worldCoords buffer matches the same vertex order (TL, BL, TR, TR, BL, BR)
     EngineUtils.makeQuadVec2Buffered(this.coordsBuffer, xW, yW + sideLength, xW + sideLength, yW);
     worldCoordsA.setVertex(this.coordsBuffer, this.verts);
 

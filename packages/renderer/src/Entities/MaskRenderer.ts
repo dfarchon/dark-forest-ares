@@ -26,10 +26,14 @@ export class MaskRenderer extends GenericRenderer<typeof MASK_PROGRAM_DEFINITION
       chunkFootprint: { bottomLeft, sideLength },
       perlin,
     } = chunk;
-    const { x: x1, y: y2 } = viewport.worldToCanvasCoords(bottomLeft);
-    const chunkW = viewport.worldToCanvasDist(sideLength);
-    const x2 = x1 + chunkW;
-    const y1 = y2 - chunkW;
+    // Convert all 4 world corners to screen space for isometric support
+    const cTL = viewport.worldToCanvasCoords({ x: bottomLeft.x, y: bottomLeft.y + sideLength });
+    const cBL = viewport.worldToCanvasCoords(bottomLeft);
+    const cTR = viewport.worldToCanvasCoords({
+      x: bottomLeft.x + sideLength,
+      y: bottomLeft.y + sideLength,
+    });
+    const cBR = viewport.worldToCanvasCoords({ x: bottomLeft.x + sideLength, y: bottomLeft.y });
 
     let color = 0; // 0 is nebula, 3 is dead space
 
@@ -39,7 +43,14 @@ export class MaskRenderer extends GenericRenderer<typeof MASK_PROGRAM_DEFINITION
 
     const { position } = this.attribManagers;
 
-    EngineUtils.makeQuadBuffered(this.quadBuffer, x1, y1, x2, y2, color);
+    // Build 3D quad (z = color) as 2 triangles: TL, BL, TR, TR, BL, BR
+    const b = this.quadBuffer;
+    b[0] = cTL.x; b[1] = cTL.y; b[2] = color;
+    b[3] = cBL.x; b[4] = cBL.y; b[5] = color;
+    b[6] = cTR.x; b[7] = cTR.y; b[8] = color;
+    b[9] = cTR.x; b[10] = cTR.y; b[11] = color;
+    b[12] = cBL.x; b[13] = cBL.y; b[14] = color;
+    b[15] = cBR.x; b[16] = cBR.y; b[17] = color;
     position.setVertex(this.quadBuffer, this.verts);
 
     this.verts += 6;
