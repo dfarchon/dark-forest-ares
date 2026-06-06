@@ -2774,6 +2774,10 @@ class BaseGameManager extends EventEmitter {
         }, ${planet.location.coords.y})`,
         TerminalTextStyle.Pink
       );
+      this.terminal.current?.println(
+        'Save these home coordinates somewhere outside this browser so you can recover this account later.',
+        TerminalTextStyle.Text
+      );
       this.terminal.current?.newline();
 
       await this.persistentChunkStore.addHomeLocation(planet.location);

@@ -18,7 +18,7 @@ import { IDBPDatabase, openDB } from 'idb';
 import stringify from 'json-stable-stringify';
 import _ from 'lodash';
 import { MAX_CHUNK_SIZE } from '../../Frontend/Utils/constants';
-import { ChunkId, ChunkStore, PersistedChunk } from '../../_types/darkforest/api/ChunkStoreTypes';
+import { ChunkId, ChunkStore } from '../../_types/darkforest/api/ChunkStoreTypes';
 import {
   addToChunkMap,
   getChunkKey,
@@ -66,6 +66,44 @@ interface PersistentChunkStoreConfig {
 }
 
 export const MODAL_POSITIONS_KEY = 'modal_positions';
+const HOME_LOCATIONS_KEY = 'homeLocations';
+const HOME_LOCATION_BACKUP_PREFIX = 'dfares-homeLocations';
+
+function isWorldLocation(location: unknown): location is WorldLocation {
+  if (!location || typeof location !== 'object') return false;
+
+  const maybeLocation = location as Partial<WorldLocation>;
+  const coords = maybeLocation.coords;
+
+  return (
+    !!coords &&
+    typeof coords.x === 'number' &&
+    typeof coords.y === 'number' &&
+    typeof maybeLocation.hash === 'string' &&
+    typeof maybeLocation.perlin === 'number' &&
+    typeof maybeLocation.biomebase === 'number'
+  );
+}
+
+function parseHomeLocations(serializedHomeLocations: string | undefined): WorldLocation[] {
+  if (!serializedHomeLocations) return [];
+
+  try {
+    const parsed = JSON.parse(serializedHomeLocations) as unknown;
+    if (!Array.isArray(parsed) || !parsed.every(isWorldLocation)) {
+      return [];
+    }
+
+    return parsed;
+  } catch (e) {
+    console.warn('Unable to parse saved home locations; ignoring saved value.', e);
+    return [];
+  }
+}
+
+function dedupeHomeLocations(locations: WorldLocation[]): WorldLocation[] {
+  return Array.from(new Map(locations.map((location) => [location.hash, location])).values());
+}
 
 class PersistentChunkStore implements ChunkStore {
   private diagnosticUpdater?: DiagnosticUpdater;
@@ -155,6 +193,30 @@ class PersistentChunkStore implements ChunkStore {
 
   private async removeKey(key: string, objStore: ObjectStore = ObjectStore.DEFAULT): Promise<void> {
     await this.db.delete(objStore, `${this.contractAddress}-${this.account}-${key}`);
+  }
+
+  private getHomeLocationBackupKey(): string {
+    return `${HOME_LOCATION_BACKUP_PREFIX}-${this.contractAddress}-${this.account}`;
+  }
+
+  private getHomeLocationBackup(): WorldLocation[] {
+    try {
+      return parseHomeLocations(localStorage.getItem(this.getHomeLocationBackupKey()) ?? undefined);
+    } catch (e) {
+      console.warn('Unable to read home location backup; ignoring backup.', e);
+      return [];
+    }
+  }
+
+  private saveHomeLocationBackup(locations: WorldLocation[]): void {
+    try {
+      localStorage.setItem(
+        this.getHomeLocationBackupKey(),
+        stringify(dedupeHomeLocations(locations))
+      );
+    } catch (e) {
+      console.warn('Unable to save home location backup.', e);
+    }
   }
 
   private async bulkSetKeyInCollection(
@@ -267,28 +329,35 @@ class PersistentChunkStore implements ChunkStore {
    * which bricks the user's account.
    */
   public async getHomeLocations(): Promise<WorldLocation[]> {
-    const homeLocations = await this.getKey('homeLocations');
-    let parsed: WorldLocation[] = [];
-    if (homeLocations) {
-      parsed = JSON.parse(homeLocations) as WorldLocation[];
+    const savedHomeLocations = parseHomeLocations(await this.getKey(HOME_LOCATIONS_KEY));
+
+    if (savedHomeLocations.length > 0) {
+      const locations = dedupeHomeLocations(savedHomeLocations);
+      this.saveHomeLocationBackup(locations);
+      return locations;
     }
 
-    return parsed;
+    const backedUpHomeLocations = this.getHomeLocationBackup();
+    if (backedUpHomeLocations.length === 0) {
+      return [];
+    }
+
+    const locations = dedupeHomeLocations(backedUpHomeLocations);
+    await this.setKey(HOME_LOCATIONS_KEY, stringify(locations));
+    return locations;
   }
 
   public async addHomeLocation(location: WorldLocation): Promise<void> {
-    let locationList = await this.getHomeLocations();
-    if (locationList) {
-      locationList.push(location);
-    } else {
-      locationList = [location];
-    }
-    locationList = Array.from(new Set(locationList));
-    await this.setKey('homeLocations', stringify(locationList));
+    const locationList = dedupeHomeLocations([...(await this.getHomeLocations()), location]);
+    const serializedLocationList = stringify(locationList);
+    await this.setKey(HOME_LOCATIONS_KEY, serializedLocationList);
+    this.saveHomeLocationBackup(locationList);
   }
 
   public async confirmHomeLocation(location: WorldLocation): Promise<void> {
-    await this.setKey('homeLocations', stringify([location]));
+    const locationList = [location];
+    await this.setKey(HOME_LOCATIONS_KEY, stringify(locationList));
+    this.saveHomeLocationBackup(locationList);
   }
 
   public async getSavedTouchedPlanetIds(): Promise<LocationId[]> {

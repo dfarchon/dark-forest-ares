@@ -1215,6 +1215,10 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
             'ERROR: Home coords not found on this browser.',
             TerminalTextStyle.Red
           );
+          terminal.current?.println(
+            'Home coordinates cannot be recovered from the blockchain. Please import your saved x, y coordinates.',
+            TerminalTextStyle.Text
+          );
           setStep(TerminalPromptStep.ASK_ADD_ACCOUNT);
           return;
         }
