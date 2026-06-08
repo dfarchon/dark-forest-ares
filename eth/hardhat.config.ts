@@ -34,6 +34,7 @@ import './tasks/whitelist';
 import './tasks/batch';
 import './tasks/airdrop';
 import './tasks/admin';
+import './tasks/send-different';
 
 require('dotenv').config();
 

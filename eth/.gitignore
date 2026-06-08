@@ -32,6 +32,8 @@ darkforest.localhost.toml
 
 /local/*
 
+/sendDifferent/*
+
 generated/*
 
 /deployments/*
