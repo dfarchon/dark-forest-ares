@@ -242,5 +242,5 @@ export function ethToWei(eth: number): BigNumber {
  * Whether or not some value is being transferred in this transaction.
  */
 export function isPurchase(tx?: providers.TransactionRequest): boolean {
-  return tx !== undefined && tx.value !== undefined && tx.value > 0;
+  return tx !== undefined && tx.value !== undefined && BigNumber.from(tx.value).gt(0);
 }

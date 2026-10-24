@@ -21,6 +21,7 @@ public/img/artifacts
 
 declarations
 tsconfig.ref.tsbuildinfo
+.tsc-out/
 
 # Local Netlify folder
 .netlify

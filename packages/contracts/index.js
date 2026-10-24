@@ -36,21 +36,21 @@ exports.INIT_ADDRESS = exports.CONTRACT_ADDRESS = exports.START_BLOCK = exports.
 /**
  * The name of the network where these contracts are deployed.
  */
-exports.NETWORK = 'megaETH';
+exports.NETWORK = 'localhost';
 /**
  * The id of the network where these contracts are deployed.
  */
-exports.NETWORK_ID = 4326;
+exports.NETWORK_ID = 31337;
 /**
  * The block in which the DarkForest contract was initialized.
  */
-exports.START_BLOCK = 17344608;
+exports.START_BLOCK = 0;
 /**
  * The address for the DarkForest contract.
  */
-exports.CONTRACT_ADDRESS = '0x7d35623dE9aFa0f0A791345B6fa4f9c7AC5ad1a0';
+exports.CONTRACT_ADDRESS = '0xaaC7Aa92F4391D00F982cbADE5FA737224FEF9cf';
 /**
  * The address for the initalizer contract. Useful for lobbies.
  */
-exports.INIT_ADDRESS = '0x285C72eB59CBa433DA97d5E8bb1d351791E3714d';
+exports.INIT_ADDRESS = '0xC1734ad685B986DCDDBDe2837d4ae825074D9c9f';
 //# sourceMappingURL=index.js.map

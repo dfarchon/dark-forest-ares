@@ -12,13 +12,15 @@ import '@typechain/hardhat';
 import 'hardhat-circom';
 import 'hardhat-contract-sizer';
 import '@solidstate/hardhat-4byte-uploader';
-import { extendEnvironment, HardhatUserConfig } from 'hardhat/config';
+import { extendEnvironment } from 'hardhat/config';
+import type { HardhatUserConfig } from 'hardhat/types/config';
 import { lazyObject } from 'hardhat/plugins';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import * as diamondUtils from './utils/diamond';
 import * as subgraphUtils from './utils/subgraph';
 import * as path from 'path';
 import * as settings from './settings';
+import type { JsonFragment } from '@ethersproject/abi';
 import { decodeContracts, decodeInitializers, decodeAdminPlanets } from '@dfares/settings';
 import './tasks/artifact';
 import './tasks/circom';
@@ -151,8 +153,11 @@ const config: HardhatUserConfig = {
       },
       chainId: 31337,
     },
-    // Used when you dont specify a network on command line, like in tests
+    // Used when you dont specify a network on command line, like in tests.
+    // Hardhat 2.24+ defaults to Prague. Pin London so gas and tx checks stay
+    // on the rules this universe was written against.
     hardhat: {
+      hardfork: 'london',
       accounts: [
         // from/deployer is default the first address in accounts
         {
@@ -259,7 +264,7 @@ const config: HardhatUserConfig = {
       path: path.join(packageDirs['@dfares/contracts'], 'abis'),
       runOnCompile: true,
       // We don't want additional directories created, so we just return the contractName
-      rename(_sourceName, contractName) {
+      rename(_sourceName: string, contractName: string) {
         return contractName;
       },
       // We **only** want to copy the DarkForest ABI (which is the Diamond ABI we generate) and the initializer ABI to this folder, so we limit the matched files with the `only` option
@@ -269,13 +274,13 @@ const config: HardhatUserConfig = {
       path: path.join(packageDirs['@dfares/contracts'], 'abis'),
       runOnCompile: true,
       // This is a "stripped" version for the subgraph, so we append `_stripped`
-      rename(_sourceName, contractName) {
+      rename(_sourceName: string, contractName: string) {
         return `${contractName}_stripped`;
       },
       // Subgraph doesn't need the initializer ABI
       only: [':DarkForest$'],
       // We need to remove some ABI functions that subgraph can't handle
-      filter(abiElement) {
+      filter(abiElement: JsonFragment) {
         return subgraphUtils.abiFilter(abiElement);
       },
     },

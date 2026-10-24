@@ -154,11 +154,19 @@ async function confirmDeployment(contractName: string, address: string, txHash: 
 async function runOnceTransaction(
   transactionName: string,
   address: string,
-  send: () => Promise<{ hash: string }>
+  send: () => Promise<{ hash: string; wait: () => Promise<ContractReceipt> }>
 ): Promise<ContractReceipt> {
   const context = activeDeployState;
+  // Tests call deployAndCut directly and have no checkpoint file. Send the
+  // transaction and wait for it, the same way contract deploys already do.
   if (!context) {
-    throw new Error(`${transactionName}: deploy state unavailable`);
+    const tx = await send();
+    console.log('------ tx:', tx.hash, ' ------');
+    const receipt = await tx.wait();
+    if (!receipt.status) {
+      throw new Error(`${transactionName} failed: ${tx.hash}`);
+    }
+    return receipt;
   }
 
   const previous = context?.state.transactions?.[transactionName];
@@ -581,7 +589,11 @@ export async function deployAndCut(
   ]);
 
   const initReceipt = await runOnceTransaction('diamondCut:init', diamond.address, () =>
-    diamondCut.diamondCut(toCut, initAddress, initFunctionCall)
+    // Hardhat's gas estimate is tight for this delegatecall. The 63/64 rule
+    // leaves the init without enough gas and it reverts with empty data.
+    diamondCut.diamondCut(toCut, initAddress, initFunctionCall, {
+      gasLimit: 80_000_000,
+    })
   );
   console.log('Completed diamond cut');
 

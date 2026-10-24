@@ -4,7 +4,7 @@
   "license": "MIT",
   "author": "0xPARC <ivan@0xPARC.org>",
   "engines": {
-    "node": ">=16"
+    "node": "24.22.1"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -26,27 +26,27 @@
     "@dfares/events": "7.1.4",
     "@dfares/serde": "7.1.4",
     "@dfares/types": "7.1.4",
-    "async-mutex": "^0.3.2",
-    "ethers": "^5.5.1",
-    "json-stable-stringify": "^1.0.1",
-    "just-debounce": "^1.1.0",
-    "lodash": "^4.17.15",
-    "mnemonist": "^0.38.1",
-    "p-defer": "^3.0.0",
-    "p-retry": "^4.6.1",
-    "p-timeout": "^4.0.0",
-    "uuid": "^8.3.2"
+    "async-mutex": "0.3.2",
+    "ethers": "5.5.2",
+    "json-stable-stringify": "1.0.1",
+    "just-debounce": "1.1.0",
+    "lodash": "4.17.21",
+    "mnemonist": "0.38.4",
+    "p-defer": "3.0.0",
+    "p-retry": "4.6.1",
+    "p-timeout": "4.1.0",
+    "uuid": "8.3.2"
   },
   "devDependencies": {
-    "@types/json-stable-stringify": "^1.0.32",
-    "@types/lodash": "^4.14.195",
-    "@types/uuid": "^8.3.0",
-    "del-cli": "^4.0.1",
-    "eslint": "^7.30.0",
-    "prettier": "^2.3.0",
-    "typedoc": "^0.22.8",
-    "typedoc-plugin-markdown": "3.11.x",
-    "typescript": "4.5.x"
+    "@types/json-stable-stringify": "1.0.33",
+    "@types/lodash": "4.14.195",
+    "@types/uuid": "8.3.1",
+    "del-cli": "4.0.1",
+    "eslint": "7.32.0",
+    "prettier": "2.4.1",
+    "typedoc": "0.22.13",
+    "typedoc-plugin-markdown": "3.11.14",
+    "typescript": "5.5.4"
   },
   "publishConfig": {
     "access": "public"

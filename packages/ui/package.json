@@ -4,7 +4,7 @@
   "license": "MIT",
   "author": "0xPARC <ivan@0xPARC.org>",
   "engines": {
-    "node": ">=16"
+    "node": "24.22.1"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -23,19 +23,19 @@
   "dependencies": {
     "@dfares/constants": "7.1.4",
     "@dfares/types": "7.1.4",
-    "@spectrum-web-components/slider": "^0.12.3",
-    "@spectrum-web-components/theme": "^0.9.3",
-    "color": "^3.0.2",
-    "lit": "^2.1.2"
+    "@spectrum-web-components/slider": "0.12.3",
+    "@spectrum-web-components/theme": "0.9.3",
+    "color": "3.2.1",
+    "lit": "2.1.2"
   },
   "devDependencies": {
-    "@types/color": "^3.0.2",
-    "del-cli": "^4.0.1",
-    "eslint": "^7.30.0",
-    "prettier": "^2.3.0",
-    "typedoc": "^0.22.8",
-    "typedoc-plugin-markdown": "3.11.x",
-    "typescript": "4.5.x"
+    "@types/color": "3.0.2",
+    "del-cli": "4.0.1",
+    "eslint": "7.32.0",
+    "prettier": "2.4.1",
+    "typedoc": "0.22.13",
+    "typedoc-plugin-markdown": "3.11.14",
+    "typescript": "5.5.4"
   },
   "publishConfig": {
     "access": "public"

@@ -25,6 +25,7 @@
   ],
   "compilerOptions": {
     "composite": true,
-    "declarationMap": true
+    "noEmit": true,
+    "outDir": ".tsc-out"
   }
 }

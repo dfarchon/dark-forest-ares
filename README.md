@@ -1,9 +1,9 @@
 # Dark Forest Ares
 
-![node](https://img.shields.io/badge/node-16-43853d)
-![yarn](https://img.shields.io/badge/yarn-v1-2c8ebb)
-![typescript](https://img.shields.io/badge/typescript-4.5-3178c6)
-![hardhat](https://img.shields.io/badge/hardhat-2.6.8-f5c542)
+![node](https://img.shields.io/badge/node-24.22.1-43853d)
+![yarn](https://img.shields.io/badge/yarn-4-2c8ebb)
+![typescript](https://img.shields.io/badge/typescript-5.5-3178c6)
+![hardhat](https://img.shields.io/badge/hardhat-2.29.1-f5c542)
 ![react](https://img.shields.io/badge/react-17.0.2-61dafb)
 ![stack](https://img.shields.io/badge/stack-Solidity%20%2F%20SNARKs%20%2F%20React-6f42c1)
 ![status](https://img.shields.io/badge/status-active%20development-2ea44f)
@@ -27,14 +27,11 @@ Follow the latest updates at [x.com/darkforest_punk](https://x.com/darkforest_pu
 
 ## Launch a Local Universe
 
-Use Node.js 16.
+Use Node.js 24.22.1.
 
 ```sh
 yarn
 ```
-
-If dependency installation fails, try `npm install` once, then continue with
-Yarn.
 
 Run the local universe with Ganache. It is faster for daily development and
 keeps blocks on disk between restarts.

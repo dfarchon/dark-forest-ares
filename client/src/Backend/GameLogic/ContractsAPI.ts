@@ -57,9 +57,11 @@ import NotificationManager from '../../Frontend/Game/NotificationManager';
 import { openConfirmationWindowForTransaction } from '../../Frontend/Game/Popups';
 import { getSetting } from '../../Frontend/Utils/SettingsHooks';
 import {
+  ArtifactConfigByRarity,
   ContractConstants,
   ContractEvent,
   ContractsAPIEvent,
+  PlanetTypeWeightsBySpaceType,
 } from '../../_types/darkforest/api/ContractsAPITypes';
 import { loadDiamondContract } from '../Network/Blockchain';
 
@@ -802,10 +804,10 @@ export class ContractsAPI extends EventEmitter {
       STELLAR_ACTIVATION_DELAY: STELLAR_ACTIVATION_DELAY.toNumber(),
       LOCATION_REVEAL_COOLDOWN: LOCATION_REVEAL_COOLDOWN.toNumber(),
       CLAIM_PLANET_COOLDOWN: CLAIM_PLANET_COOLDOWN.toNumber(),
-      PLANET_TYPE_WEIGHTS,
+      PLANET_TYPE_WEIGHTS: PLANET_TYPE_WEIGHTS as PlanetTypeWeightsBySpaceType,
       SILVER_SCORE_VALUE: SILVER_SCORE_VALUE.toNumber(),
       ARTIFACT_POINT_VALUES: ARTIFACT_POINT_VALUES_decoded,
-      ARTIFACTS,
+      ARTIFACTS: ARTIFACTS as ArtifactConfigByRarity,
       ENABLED_ARTIFACT_TYPE_COUNTS: ENABLED_ARTIFACT_TYPE_COUNTS.map((count) => count.toNumber()),
       SPACE_JUNK_ENABLED,
       SPACE_JUNK_LIMIT: SPACE_JUNK_LIMIT.toNumber(),

@@ -5,14 +5,17 @@
   "main": "index.js",
   "license": "GPL-3.0",
   "devDependencies": {
-    "circomlib": "^2.0.3",
-    "eslint": "^7.30.0",
-    "prettier": "^2.3.0"
+    "circomlib": "2.0.3",
+    "eslint": "7.32.0",
+    "prettier": "2.4.1"
   },
   "scripts": {
     "test": "exit 0",
     "lint": "exit 0",
     "format": "prettier --write .",
     "clean": "exit 0"
+  },
+  "engines": {
+    "node": "24.22.1"
   }
 }

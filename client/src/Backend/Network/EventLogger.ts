@@ -5,6 +5,9 @@ export const enum EventType {
 
 export class EventLogger {
   private static augmentEvent(event: unknown, eventType: EventType) {
+    if (typeof event !== 'object' || event === null) {
+      return { df_event_type: eventType };
+    }
     return Object.assign(event, { df_event_type: eventType });
   }
 
