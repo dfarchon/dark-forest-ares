@@ -26,6 +26,11 @@ function findScopeDirectory() {
 
 module.exports = {
   mode: 'production',
+  // zk keys, art, and audio are copied as-is and are larger than webpack's
+  // default 244 KiB hint. They are not bundle mistakes.
+  performance: {
+    hints: false,
+  },
   entry: ['./src/Frontend/EntryPoints/index.tsx'],
   output: {
     path: path.join(__dirname, '/dist'),
@@ -114,8 +119,9 @@ module.exports = {
     }),
     // The string values are fallbacks if the env variable is not set
     new EnvironmentPlugin({
-      NODE_ENV: 'development',
-      DEFAULT_RPC: 'https://rpc-df.xdaichain.com/',
+      // NODE_ENV is defined by webpack's mode. Setting it here conflicts with
+      // --mode development / --mode production.
+      DEFAULT_RPC: 'https://sepolia.optimism.io',
       // This must be null to indicate to webpack that this environment variable is optional
       DF_WEBSERVER_URL: null,
       LEADER_BOARD_URL: null,

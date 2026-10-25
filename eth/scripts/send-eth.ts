@@ -64,9 +64,13 @@ function resolveRpcUrl(network?: string): string {
     if (!process.env.REDSTONE_RPC_URL) throw new Error('REDSTONE_RPC_URL not set in .env');
     return process.env.REDSTONE_RPC_URL;
   }
+  if (network === 'opSepolia') {
+    if (!process.env.OP_SEPOLIA_RPC_URL) throw new Error('OP_SEPOLIA_RPC_URL not set in .env');
+    return process.env.OP_SEPOLIA_RPC_URL;
+  }
   if (process.env.RPC_URL) return process.env.RPC_URL;
   throw new Error(
-    'Provide --network (localhost | xdai | mainnet | altlayer | megaETH | redstoneTestnet | redstone), --rpc, or set RPC_URL in .env'
+    'Provide --network (localhost | xdai | mainnet | altlayer | megaETH | redstoneTestnet | redstone | opSepolia), --rpc, or set RPC_URL in .env'
   );
 }
 

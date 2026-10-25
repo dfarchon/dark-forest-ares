@@ -35,7 +35,7 @@ import {
 import bigInt, { BigInteger } from 'big-integer';
 
 export const TOKEN_NAME = 'ETH';
-export const BLOCKCHAIN_NAME = 'MegaETH';
+export const BLOCKCHAIN_NAME = 'OP Sepolia';
 export const HOST_TEAM_NAME = 'DFArchon';
 export const GAME_VERSION_INTRO = 'v0.1 R5';
 
@@ -130,15 +130,13 @@ export const MIN_BIOME = Biome.OCEAN;
 export const MAX_BIOME = Biome.CORRUPTED;
 
 /**
- * The URL for xDai's API that returns the gas prices for 35th, 60th, and 90th percentiles of gas prices in the
- * previous 200 blocks. Useful for auto gas price setting.
- *
- * https://www.xdaichain.com/for-developers/developer-resources/gas-price-oracle
+ * Gas prices for OP Sepolia from Blockscout. Useful for auto gas price setting.
  */
-export const GAS_PRICE_API = 'https://blockscout.com/xdai/mainnet/api/v1/gas-price-oracle' as const;
+export const GAS_PRICE_API =
+  'https://optimism-sepolia.blockscout.com/api/v1/gas-price-oracle' as const;
 
 /**
- * In case we cannot load gas prices from xDai, these are the default auto gas prices.
+ * In case we cannot load gas prices from OP Sepolia, these are the default auto gas prices.
  */
 export const DEFAULT_GAS_PRICES: GasPrices = {
   slow: Number(parseFloat(GAS_ADJUST_DELTA) * parseInt('1')), // 1,
@@ -147,7 +145,7 @@ export const DEFAULT_GAS_PRICES: GasPrices = {
 } as const;
 
 /**
- * In case xDai's auto-price is something ridiculous, we don't want our players to insta run out of
+ * In case the auto-price is something ridiculous, we don't want our players to insta run out of
  * money.
  */
 export const MAX_AUTO_GAS_PRICE_GWEI = 15 as const;
@@ -156,13 +154,13 @@ export const MAX_AUTO_GAS_PRICE_GWEI = 15 as const;
  * The URL to the block explorer for the chain being used. Prepended to transaction links, etc
  */
 // Careful, don't add a slash to the end of this.
-export const BLOCK_EXPLORER_URL = 'https://mega.etherscan.io' as const;
+export const BLOCK_EXPLORER_URL = 'https://sepolia-optimism.etherscan.io' as const;
 
 /**
  * The URL to the bridge for the chain being used. Prepended to transaction links, etc
  */
 
-export const BLOCKCHAIN_BRIDGE = 'https://rabbithole.megaeth.com/bridge/' as const;
+export const BLOCKCHAIN_BRIDGE = 'https://app.optimism.io/bridge' as const;
 /**
  * The amount of time between gas price refreshes when fetching prices from the oracle.
  */
@@ -240,8 +238,7 @@ export const THEGRAPH_API_URL =
 export const PLAYER_GUIDE =
   'https://dfares.notion.site/Dark-Forest-Ares-v0-1-R5-Guide-370a4dc2343380ddb0ddca0a88d68a5c';
 
-export const HOW_TO_GET_ETH =
-  'https://dfares.notion.site/How-to-transfer-ETH-from-L2-to-MegaETH-e8ca4dc23433839abbf001aa30eeb406';
+export const HOW_TO_GET_ETH = 'https://console.optimism.io/faucet';
 
 export const HOW_TO_ENABLE_POPUPS =
   'https://dfares.notion.site/How-to-enable-popups-c83a4dc2343382e3a2520116eb732e8b';

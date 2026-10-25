@@ -77,6 +77,7 @@
     "hardhat:megaETH": "hardhat --network megaETH",
     "hardhat:redstoneTestnet": "hardhat --network redstoneTestnet",
     "hardhat:redstone": "hardhat --network redstone",
+    "hardhat:opSepolia": "hardhat --network opSepolia",
     "compile": "hardhat compile",
     "circom:prod": "hardhat circom --verbose",
     "circom:dev": "hardhat circom --deterministic --verbose --debug",

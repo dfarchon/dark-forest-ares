@@ -588,11 +588,36 @@ export async function deployAndCut(
     initializers,
   ]);
 
+  const blockGasLimit = (await hre.ethers.provider.getBlock('latest')).gasLimit;
+  // Prefer a high limit. The 63/64 rule makes a tight estimate revert inside
+  // the init delegatecall. Local Hardhat blocks are 100M and accept 80M.
+  // OP Sepolia's block limit is 40M, and EIP-7825 caps one transaction at
+  // 2^24 gas. A request above that is rejected before it is mined.
+  const preferredGasLimit = hre.ethers.BigNumber.from(80_000_000);
+  const blockCap = blockGasLimit.gt(1) ? blockGasLimit.sub(1) : blockGasLimit;
+  let gasLimit = preferredGasLimit.gt(blockCap) ? blockCap : preferredGasLimit;
+  const isLocal = hre.network.name === 'localhost' || hre.network.name === 'hardhat';
+  const perTxCap = hre.ethers.BigNumber.from(16_777_216);
+  if (!isLocal && gasLimit.gt(perTxCap)) {
+    gasLimit = perTxCap;
+  }
+  console.log(
+    `diamondCut gasLimit: ${gasLimit.toString()} (block gas limit ${blockGasLimit.toString()})`
+  );
+
+  // Facet cuts use about 7.4M gas and init uses about 10.1M. Together they
+  // exceed the 16,777,216 per-transaction cap once the 63/64 rule is applied,
+  // so register the facets first and initialize in a second transaction.
+  await runOnceTransaction('diamondCut:facets', diamond.address, () =>
+    diamondCut.diamondCut(toCut, hre.ethers.constants.AddressZero, '0x', {
+      gasLimit,
+    })
+  );
+  console.log('Completed facet cuts');
+
   const initReceipt = await runOnceTransaction('diamondCut:init', diamond.address, () =>
-    // Hardhat's gas estimate is tight for this delegatecall. The 63/64 rule
-    // leaves the init without enough gas and it reverts with empty data.
-    diamondCut.diamondCut(toCut, initAddress, initFunctionCall, {
-      gasLimit: 80_000_000,
+    diamondCut.diamondCut([], initAddress, initFunctionCall, {
+      gasLimit,
     })
   );
   console.log('Completed diamond cut');

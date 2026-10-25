@@ -18,15 +18,13 @@ export async function loadDiamondContract<T extends Contract>(
 
 export function getEthConnection(): Promise<EthConnection> {
   const isProd = process.env.NODE_ENV === 'production';
-  const defaultUrl = process.env.DEFAULT_RPC as string;
+  const defaultUrl = process.env.DEFAULT_RPC || 'http://localhost:8545';
 
-  let url: string;
-
-  if (isProd) {
-    url = localStorage.getItem('XDAI_RPC_ENDPOINT_v5') || defaultUrl;
-  } else {
-    url = 'http://localhost:8545';
-  }
+  // Development uses DEFAULT_RPC directly. Production keeps a browser override
+  // from the settings pane, then falls back to the same default.
+  const url = isProd
+    ? localStorage.getItem('XDAI_RPC_ENDPOINT_v5') || defaultUrl
+    : defaultUrl;
 
   console.log(`GAME METADATA:`);
   console.log(`rpc url: ${url}`);

@@ -133,6 +133,16 @@ const redstone = {
   gasPrice: 100,
 };
 
+const hasOpSepoliaConfig =
+  DEPLOYER_MNEMONIC && process.env.OP_SEPOLIA_RPC_URL && process.env.OP_SEPOLIA_CHAINID;
+const opSepolia = {
+  url: process.env.OP_SEPOLIA_RPC_URL,
+  accounts: {
+    mnemonic: process.env.DEPLOYER_MNEMONIC,
+  },
+  chainId: Number(process.env.OP_SEPOLIA_CHAINID),
+};
+
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
   networks: {
@@ -145,6 +155,7 @@ const config: HardhatUserConfig = {
     ...(hasMegaETHConfig ? { megaETH } : undefined),
     ...(hasRedstoneTestnetConfig ? { redstoneTestnet } : undefined),
     ...(hasRedstoneConfig ? { redstone } : undefined),
+    ...(hasOpSepoliaConfig ? { opSepolia } : undefined),
     localhost: {
       url: 'http://localhost:8545/',
       accounts: {
