@@ -11,7 +11,7 @@ import { CONTRACT_ADDRESS } from '@dfares/contracts';
 import { DarkForest } from '@dfares/contracts/typechain';
 import { EthConnection, neverResolves, weiToEth } from '@dfares/network';
 import { address } from '@dfares/serde';
-import { UnconfirmedUseKey } from '@dfares/types';
+import { Setting, UnconfirmedUseKey } from '@dfares/types';
 import { bigIntFromKey } from '@dfares/whitelist';
 import { utils, Wallet } from 'ethers';
 import { reverse } from 'lodash';
@@ -33,7 +33,13 @@ import {
   submitPlayerEmail,
 } from '../../Backend/Network/UtilityServerAPI';
 import { getWhitelistArgs } from '../../Backend/Utils/WhitelistSnarkArgsHelper';
-import { resolveQuickJoinAccount } from '../../config/quickJoin';
+import {
+  ExhibitionAccount,
+  boothAccountIdFromSearch,
+  clearLegacyExhibitionAccountId,
+  loadExhibitionAccounts,
+} from '../Utils/exhibition';
+import { resolveQuickJoinAccount } from '../Utils/quickJoin';
 import { ZKArgIdx } from '../../_types/darkforest/api/ContractsAPITypes';
 import { CopyToClipboardButton } from '../Components/CopyToClipboardButton';
 import {
@@ -46,7 +52,10 @@ import {
 import { MythicLabelText } from '../Components/Labels/MythicLabel';
 import { QuickJoinSettingsModal } from '../Components/QuickJoinSettingsModal';
 import { TopLevelDivProvider, UIManagerProvider } from '../Utils/AppHooks';
+import { SpiralPattern } from '../../Backend/Miner/MiningPatterns';
 import { Incompatibility, unsupportedFeatures } from '../Utils/BrowserChecks';
+import { MIN_CHUNK_SIZE } from '../Utils/constants';
+import { setBooleanSetting } from '../Utils/SettingsHooks';
 import { TerminalTextStyle } from '../Utils/TerminalTypes';
 import UIEmitter, { UIEmitterEvent } from '../Utils/UIEmitter';
 import { GameWindowLayout } from '../Views/GameWindowLayout';
@@ -225,6 +234,9 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
   const skipTerminalPromptsRef = useRef(false);
   const quickBootstrapDoneRef = useRef(false);
   const quickBootstrapEffectGenRef = useRef(0);
+  const exhibitionAccountRef = useRef<ExhibitionAccount | null>(null);
+  const exhibitionBootstrapStartedRef = useRef(false);
+  const [exhibitionActive, setExhibitionActive] = useState(false);
 
   const [browserCompatibleState, setBrowserCompatibleState] =
     useState<BrowserCompatibleState>('unknown');
@@ -240,6 +252,7 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
   const useZkWhitelist = true;
   // const useZkWhitelist = params.has('zkWhitelist');
   const selectedAddress = params.get('account');
+  const boothAccountId = boothAccountIdFromSearch(location.search);
   const contractAddress = address(match.params.contract);
   const isLobby = contractAddress !== address(CONTRACT_ADDRESS);
 
@@ -385,8 +398,20 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
           }
           await ethConnection.setAccount(account.privateKey);
         } else {
-          const accounts = getAccounts();
-          if (accounts.length === 0) {
+          let boothAddresses: ReadonlySet<string> | undefined;
+          try {
+            const boothAccounts = await loadExhibitionAccounts();
+            boothAddresses = new Set(
+              boothAccounts.map((account) => account.publicKey.toLowerCase())
+            );
+          } catch {
+            // A missing booth list must not change normal Quick Join.
+            boothAddresses = undefined;
+          }
+          if (generation !== quickBootstrapEffectGenRef.current) return;
+
+          const chosen = resolveQuickJoinAccount(getAccounts(), boothAddresses);
+          if (!chosen) {
             const newWallet = Wallet.createRandom();
             const newSKey = newWallet.privateKey;
             const newAddr = address(newWallet.address);
@@ -397,10 +422,6 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
               printBurnerWalletWarnings(terminalHandle.current, newAddr);
             }
           } else {
-            const chosen = resolveQuickJoinAccount(accounts);
-            if (!chosen) {
-              throw new Error('Local accounts list was unexpectedly empty.');
-            }
             await ethConnection.setAccount(chosen.privateKey);
           }
         }
@@ -422,6 +443,49 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
       }
     })();
   }, [entryMode, ethConnection, selectedAddress]);
+
+  useEffect(() => {
+    if (boothAccountId) return;
+    clearLegacyExhibitionAccountId();
+  }, [boothAccountId]);
+
+  useEffect(() => {
+    if (!ethConnection || browserCompatibleState !== 'supported') return;
+    if (!boothAccountId) return;
+    if (exhibitionBootstrapStartedRef.current) return;
+    exhibitionBootstrapStartedRef.current = true;
+
+    void (async () => {
+      try {
+        const accounts = await loadExhibitionAccounts();
+        const selected = accounts.find((account) => account.id === boothAccountId);
+        if (!selected || !selected.keyMatches || !selected.spawn) {
+          throw new Error('Selected exhibition account is missing or invalid. Return to /booth.');
+        }
+        await ethConnection.setAccount(selected.privateKey);
+        const playerAddress = ethConnection.getAddress();
+        if (playerAddress) {
+          const settingConfig = { contractAddress, account: playerAddress };
+          setBooleanSetting(settingConfig, Setting.NewPlayer, false);
+          setBooleanSetting(settingConfig, Setting.TutorialOpen, false);
+        }
+        exhibitionAccountRef.current = selected;
+        skipTerminalPromptsRef.current = true;
+        setTerminalVisible(true);
+        setExhibitionActive(true);
+        setStep(TerminalPromptStep.ACCOUNT_SET);
+      } catch (err) {
+        console.error(err);
+        setTerminalVisible(true);
+        terminalHandle.current?.println(
+          err instanceof Error ? err.message : String(err),
+          TerminalTextStyle.Red
+        );
+        setExhibitionActive(true);
+        setStep(TerminalPromptStep.TERMINATED);
+      }
+    })();
+  }, [ethConnection, browserCompatibleState, contractAddress, boothAccountId]);
 
   const isProd = process.env.NODE_ENV === 'production';
 
@@ -745,6 +809,11 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
       try {
         const playerAddress = ethConnection?.getAddress();
         if (!playerAddress || !ethConnection) throw new Error('not logged in');
+
+        if (exhibitionAccountRef.current) {
+          setStep(TerminalPromptStep.FETCHING_ETH_DATA);
+          return;
+        }
 
         terminal.current?.println('Checking account balance... ');
 
@@ -1195,6 +1264,57 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
       // terminal.current?.newline();
 
       gameUIManagerRef.current = newGameUIManager;
+
+      const exhibitionAccount = exhibitionAccountRef.current;
+      const exhibitionSpawn = exhibitionAccount?.spawn;
+      if (exhibitionAccount && exhibitionSpawn) {
+        try {
+          if (!newGameManager.hasJoinedGame()) {
+            const playerAddress = ethConnection.getAddress();
+            if (!playerAddress) throw new Error('not logged in');
+            const balance = await ethConnection.loadBalance(playerAddress);
+            if (balance.isZero()) {
+              terminal.current?.println(
+                'Balance is too low to join. Ask an admin to run the eth/booth fund script.',
+                TerminalTextStyle.Red
+              );
+              setStep(TerminalPromptStep.TERMINATED);
+              return;
+            }
+            terminal.current?.println(
+              `Joining at spawn (${exhibitionSpawn.x}, ${exhibitionSpawn.y}).`
+            );
+            await newGameUIManager.joinGame(
+              async (e) => {
+                terminal.current?.println(e.message, TerminalTextStyle.Red);
+                throw e;
+              },
+              exhibitionSpawn,
+              false
+            );
+          } else {
+            await newGameUIManager.addAccount(exhibitionSpawn);
+          }
+          newGameUIManager.setMiningPattern(new SpiralPattern(exhibitionSpawn, MIN_CHUNK_SIZE));
+          newGameUIManager.startExplore();
+          const playerAddress = ethConnection.getAddress();
+          if (playerAddress) {
+            const settingConfig = { contractAddress, account: playerAddress };
+            setBooleanSetting(settingConfig, Setting.NewPlayer, false);
+            setBooleanSetting(settingConfig, Setting.TutorialOpen, false);
+          }
+          terminal.current?.println('Mining around the configured spawn center.');
+          setStep(TerminalPromptStep.ALL_CHECKS_PASS);
+        } catch (err) {
+          console.error(err);
+          terminal.current?.println(
+            err instanceof Error ? err.message : String(err),
+            TerminalTextStyle.Red
+          );
+          setStep(TerminalPromptStep.TERMINATED);
+        }
+        return;
+      }
 
       if (!newGameManager.hasJoinedGame() && spectate === false) {
         setStep(TerminalPromptStep.NO_HOME_PLANET);
@@ -1837,12 +1957,14 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
   }, [terminalVisible]);
 
   useEffect(() => {
-    if (entryMode === 'pending') return;
-    if (entryMode === 'quick' && !quickBootstrapDoneRef.current) return;
+    if (!exhibitionActive) {
+      if (entryMode === 'pending') return;
+      if (entryMode === 'quick' && !quickBootstrapDoneRef.current) return;
+    }
     if (terminalHandle.current && topLevelContainer.current) {
       advanceState(terminalHandle);
     }
-  }, [terminalHandle, topLevelContainer, advanceState, entryMode, ethConnection]);
+  }, [terminalHandle, topLevelContainer, advanceState, entryMode, ethConnection, exhibitionActive]);
 
   const terminalOptionMode: TerminalOptionMode =
     entryMode === 'standard' || entryMode === 'quick' ? 'buttons' : 'classic';
@@ -1854,12 +1976,14 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
         open={quickJoinSettingsOpen}
         onClose={() => setQuickJoinSettingsOpen(false)}
       />
-      {entryMode === 'pending' && browserCompatibleState === 'supported' && (
-        <GameLandingEntryOverlay
-          onSelect={handleEntryModeSelected}
-          onConfigureQuickJoin={() => setQuickJoinSettingsOpen(true)}
-        />
-      )}
+      {!boothAccountId &&
+        entryMode === 'pending' &&
+        browserCompatibleState === 'supported' && (
+          <GameLandingEntryOverlay
+            onSelect={handleEntryModeSelected}
+            onConfigureQuickJoin={() => setQuickJoinSettingsOpen(true)}
+          />
+        )}
       <Wrapper initRender={initRenderState} terminalEnabled={terminalVisible}>
         <GameWindowWrapper initRender={initRenderState} terminalEnabled={terminalVisible}>
           {gameUIManagerRef.current && topLevelContainer.current && gameManager && (

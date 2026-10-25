@@ -5,6 +5,7 @@
     "settings.ts",
     "tasks/**/*.ts",
     "scripts/**/*.ts",
+    "booth/**/*.ts",
     // test/**/*.ts is explicitly not included to avoid a chicken-egg problem with typechain
     "utils/**/*.ts",
     "utils/**/*.json",

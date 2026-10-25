@@ -5,7 +5,7 @@ import {
   clearQuickJoinDefaultAccount,
   getQuickJoinDefaultAccount,
   setQuickJoinDefaultAccount,
-} from '../../config/quickJoin';
+} from '../Utils/quickJoin';
 import dfstyles from '../Styles/dfstyles';
 import { Btn } from './Btn';
 import { Title } from './CoreUI';

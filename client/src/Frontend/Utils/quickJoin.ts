@@ -1,9 +1,10 @@
 /**
  * Quick join: optional default local account (address hex) stored in localStorage.
- * When unset, Quick join uses the newest local account (last in getAccounts() order).
+ * When unset, Quick join uses the newest eligible local account (last in getAccounts() order).
+ * Pass booth addresses as excludeAddresses so those keys are never chosen automatically.
  */
 
-import type { Account } from '../Backend/Network/AccountManager';
+import type { Account } from '../../Backend/Network/AccountManager';
 
 const STORAGE_KEY_QUICK_JOIN_DEFAULT = 'dfares:quickJoinDefaultAccount';
 
@@ -34,16 +35,23 @@ export function clearQuickJoinDefaultAccount(): void {
 
 /**
  * Pick the account Quick join should use: saved default if still present,
- * otherwise the last account in the list (newest by addAccount order).
+ * otherwise the last eligible account (newest by addAccount order).
+ * Addresses in `excludeAddresses` (lowercase) are skipped, including a saved default.
  */
-export function resolveQuickJoinAccount(accounts: Account[]): Account | undefined {
-  if (accounts.length === 0) return undefined;
+export function resolveQuickJoinAccount(
+  accounts: Account[],
+  excludeAddresses?: ReadonlySet<string>
+): Account | undefined {
+  const eligible = excludeAddresses
+    ? accounts.filter((account) => !excludeAddresses.has(account.address.toLowerCase()))
+    : accounts;
+  if (eligible.length === 0) return undefined;
 
   const preferred = getQuickJoinDefaultAccount();
   if (preferred) {
-    const found = accounts.find((a) => a.address === preferred);
+    const found = eligible.find((account) => account.address === preferred);
     if (found) return found;
   }
 
-  return accounts[accounts.length - 1];
+  return eligible[eligible.length - 1];
 }

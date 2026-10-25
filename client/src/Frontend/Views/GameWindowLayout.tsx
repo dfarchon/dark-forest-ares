@@ -80,7 +80,7 @@ export function GameWindowLayout({
   );
 
   const [paneVisible, setPaneVisible] = useState<boolean>(true);
-  const [bottomHotkeyVisible, setBottomHotkeyVisible] = useState<boolean>(true);
+  const [bottomHotkeyVisible, setBottomHotkeyVisible] = useState<boolean>(false);
 
   const [helpVisible, setHelpVisible] = useState<boolean>(isModalOpen(ModalName.Help));
   const [transactionLogVisible, setTransactionLogVisible] = useState<boolean>(

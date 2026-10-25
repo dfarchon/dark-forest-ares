@@ -2,6 +2,7 @@ import { BLOCKCHAIN_NAME, PLAYER_GUIDE } from '@dfares/constants';
 import { CONTRACT_ADDRESS } from '@dfares/contracts';
 import { address } from '@dfares/serde';
 import React from 'react';
+import { useHistory } from 'react-router-dom';
 import styled, { css } from 'styled-components';
 import { Spacer } from '../Components/CoreUI';
 import { useEnterUniverse } from '../hooks/useEnterUniverse';
@@ -81,6 +82,7 @@ const EnterButton = styled.button`
 `;
 
 export default function LandingPage() {
+  const history = useHistory();
   const playPath = `/play/${defaultAddress}`;
   const { isEntering, enterUniverse } = useEnterUniverse(playPath);
 
@@ -149,6 +151,13 @@ export default function LandingPage() {
               <ButtonWrapper>
                 <EnterButton onClick={enterUniverse} disabled={isEntering}>
                   Enter Universe
+                </EnterButton>
+                <EnterButton
+                  type='button'
+                  onClick={() => history.push('/booth')}
+                  disabled={isEntering}
+                >
+                  Enter Booth
                 </EnterButton>
                 <GuideLink href={DFArchonLinks.guide} target='_blank' rel='noreferrer'>
                   Player Guide

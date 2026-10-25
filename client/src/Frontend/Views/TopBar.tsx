@@ -31,6 +31,13 @@ function formatScore(score: number | null | undefined): string {
   return typeof score === 'number' ? score.toLocaleString() : 'n/a';
 }
 
+function formatBalanceEth(eth: number): string {
+  if (!Number.isFinite(eth) || eth === 0) return '0';
+  if (eth >= 1) return eth.toFixed(2);
+  if (eth >= 0.01) return eth.toFixed(4);
+  return eth.toFixed(6);
+}
+
 function BoardPlacement({ account }: { account: EthAddress | undefined }) {
   const uiManager = useUIManager();
   const player = usePlayer(uiManager, account);
@@ -224,7 +231,7 @@ export function TopBar({ twitterVerifyHook }: { twitterVerifyHook: Hook<boolean>
           extraContent={<Text>Your burner wallet balance.</Text>}
         >
           <Sub>
-            ({weiToEth(balance).toFixed(2)} ${TOKEN_NAME})
+            ({formatBalanceEth(weiToEth(balance))} ${TOKEN_NAME})
           </Sub>
         </TooltipTrigger>
         {process.env.DF_WEBSERVER_URL && (

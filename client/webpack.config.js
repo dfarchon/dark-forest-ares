@@ -130,7 +130,14 @@ module.exports = {
       template: './index.html',
     }),
     new CopyPlugin({
-      patterns: [{ from: 'public', to: 'public' }],
+      patterns: [
+        { from: 'public', to: 'public' },
+        {
+          from: path.resolve(__dirname, '../eth/booth/accounts.json'),
+          to: 'public/booth-accounts.json',
+          noErrorOnMissing: true,
+        },
+      ],
     }),
   ],
 };
