@@ -23,6 +23,7 @@
     "noEmit": true
   },
   "typedocOptions": {
+    "plugin": ["typedoc-plugin-markdown"],
     "entryPointStrategy": "expand",
     "entryPoints": ["src"],
     "out": "docs",
@@ -30,8 +31,6 @@
     "readme": "none",
     "disableSources": true,
     "cleanOutputDir": false,
-    "githubPages": false,
-    "excludeExternals": true,
-    "listInvalidSymbolLinks": true
+    "excludeExternals": true
   }
 }

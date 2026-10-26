@@ -13,16 +13,17 @@
   ],
   "scripts": {
     "refs:prepare": "workspaces-to-typescript-project-references --tsconfigPath tsconfig.ref.json",
+    "eth:deps": "yarn workspace eth exec node scripts/build-refs.js",
     "eth:refs": "yarn workspace eth exec tsc --build tsconfig.ref.json",
     "eth:compile": "yarn workspace eth compile",
-    "eth:prepare": "run-s eth:refs eth:compile",
+    "eth:prepare": "run-s eth:deps eth:compile eth:refs",
     "client:prepare": "yarn workspace client exec tsc --build tsconfig.ref.json",
     "prepare": "run-s refs:prepare eth:prepare client:prepare",
     "watch": "tsc --build eth/tsconfig.ref.json client/tsconfig.ref.json -w",
-    "test": "yarn workspaces foreach run test",
-    "lint": "yarn workspaces foreach run lint",
-    "clean": "yarn workspaces foreach run clean",
-    "format": "yarn workspaces foreach run format",
+    "test": "yarn workspaces foreach -A run test",
+    "lint": "yarn workspaces foreach -A run lint",
+    "clean": "yarn workspaces foreach -A run clean",
+    "format": "yarn workspaces foreach -A run format",
     "docs": "lerna run --scope @dfares/* docs",
     "start": "concurrently -n contracts,client,watch -c cyan,magenta,blue \"yarn workspace eth start\" \"yarn workspace client start:dev\" \"yarn watch\" "
   },
@@ -58,6 +59,7 @@
     "prettier": "2.4.1",
     "prettier-plugin-organize-imports": "2.3.4",
     "prettier-plugin-solidity": "1.0.0-beta.19",
+    "snarkjs": "0.4.16",
     "typescript": "5.5.4"
   },
   "resolutions": {

@@ -2,10 +2,10 @@
   "extends": "./tsconfig.json",
   "references": [
     {
-      "path": "../packages/contracts/tsconfig.ref.json"
+      "path": "../packages/constants/tsconfig.ref.json"
     },
     {
-      "path": "../packages/constants/tsconfig.ref.json"
+      "path": "../packages/contracts/tsconfig.ref.json"
     },
     {
       "path": "../packages/hashing/tsconfig.ref.json"

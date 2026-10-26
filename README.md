@@ -31,7 +31,17 @@ Use Node.js 24.22.1.
 
 ```sh
 yarn
+yarn prepare
 ```
+
+`yarn` installs dependencies. This repo is on Yarn 4, which leaves the root
+`prepare` script for an explicit call, so install does not compile anything.
+`yarn prepare` builds the `@dfares/*` packages into `dist/`, compiles the
+contracts, and then typechecks `eth/`. Contract compilation writes the TypeChain
+types and `abis/DarkForest.json`, which `eth/booth` imports, so that typecheck
+has to run after the compile. Those directories are gitignored. The client build
+and a Netlify deploy both resolve workspace packages through them, so run
+`yarn prepare` after a fresh clone and again if those directories are removed.
 
 Run the local universe with Ganache. It is faster for daily development and
 keeps blocks on disk between restarts.

@@ -1,4 +1,7 @@
 [build]
+  # Relative to the repository root. The linked site has no base directory,
+  # so without this the CLI resolves publish from the repo root.
+  base = "client"
   command = "yarn build"
   functions = "functions"
   publish = "dist"

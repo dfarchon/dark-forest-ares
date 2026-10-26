@@ -5,8 +5,9 @@
     "settings.ts",
     "tasks/**/*.ts",
     "scripts/**/*.ts",
+    // booth/ imports the generated ABI. yarn prepare compiles contracts before typechecking this project.
     "booth/**/*.ts",
-    // test/**/*.ts is explicitly not included to avoid a chicken-egg problem with typechain
+    // test/**/*.ts is explicitly not included to avoid a chicken-egg problem with typechain.
     "utils/**/*.ts",
     "utils/**/*.json",
     "../packages/contracts/typechain"
