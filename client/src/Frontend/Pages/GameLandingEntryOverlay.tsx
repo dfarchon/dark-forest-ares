@@ -14,7 +14,7 @@ export function GameLandingEntryOverlay({ onSelect, onConfigureQuickJoin }: Prop
   return (
     <Backdrop>
       <Card>
-        <Title>Dark Forest Ares {GAME_VERSION_INTRO}</Title>
+        <Title>Dark Forest Punk {GAME_VERSION_INTRO}</Title>
         <Subtitle>Choose how you want to sign in</Subtitle>
         <Hint>Pick one. You can refresh the page later to switch.</Hint>
         <ButtonCol>

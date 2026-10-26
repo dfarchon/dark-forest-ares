@@ -278,19 +278,19 @@ export class InitialGameStateDownloader {
 const tips = [
   'Beware of pirates! To capture a planet with pirates, simply send an attack large enough to overcome its current energy.',
   <>
-    Navigate the Dark Forest Ares with allies (and enemies) - join the{' '}
+    Navigate the Dark Forest Punk with allies (and enemies) - join the{' '}
     <Link to='https://discord.com/invite/f3FrFA4T25'>DFArchon Discord</Link>!
     <br />
     <br />
-    Dark Forest Ares (DFAres) is a modified version of classic{' '}
+    Dark Forest Punk (DFPunk) is a modified version of classic{' '}
     <Link to='https://zkga.me/'>Dark Forest</Link>
     .
     <br />
     DFArchon is a dev team focused on fully onchain games.
   </>,
   'There are many different artifact types, each with unique properties... try activating one on a planet!',
-  'The top players get special rewards at the end of each DFAres v0.1 round!',
-  "There are many different ways to enjoy Dark Forest Ares - as long as you're having fun, you're doing it right.",
+  'The top players get special rewards at the end of each DFPunk v0.1 round!',
+  "There are many different ways to enjoy Dark Forest Punk - as long as you're having fun, you're doing it right.",
   'Be careful when capturing planets - if you attack a player-owned planet, it may look like an act of war!',
   'A planet can have at most one active artifact.',
   'Withdrawing an artifact (via a Spacetime Rip) gives you full control of that artifact as an ERC 721 token. You can deposit artifacts you have withdrawn back into the universe via Spacetime Rips.',
@@ -316,7 +316,7 @@ const tips = [
   'Photoid Cannon artifacts will debuff your planet on activation, but get a massive stat boost for the first voyage from the planet after that a charging period. Photoid Cannon artifacts are destroyed upon use.',
   "Planetary Shield artifacts will massively boost a planet's defense, but at the cost of energy and energy growth stats. Planetary Shield artifacts are destroyed upon deactivation.",
   "Bloom Filter artifacts instantly set a planet's energy and silver to full, but are destroyed upon activation. Try using them on a Quasar!",
-  'Dark Forest Ares exists on the blockchain, so you can play with an entirely different client if you want.',
+  'Dark Forest Punk exists on the blockchain, so you can play with an entirely different client if you want.',
   <>
     Writing plugins? Check out some documentation{' '}
     <Link to='https://github.com/dfarchon/DFARES-v0.1/blob/main/client/docs/classes/Backend_GameLogic_GameManager.default.md'>

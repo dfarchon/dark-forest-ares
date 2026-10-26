@@ -108,13 +108,13 @@ export function HelpPane({ visible, onClose }: { visible: boolean; onClose: () =
         {uiManager.isRoundOver() && (
           <Section>
             <SectionHeader>{GAME_VERSION_INTRO} Complete</SectionHeader>
-            Dark Forest Ares {GAME_VERSION_INTRO} is now complete! Scores are being compiled and
+            Dark Forest Punk {GAME_VERSION_INTRO} is now complete! Scores are being compiled and
             winners will be announced shortly. Also, Artifacts will no longer be mintable. Thanks
             for playing!
           </Section>
         )}
         <Section>
-          <SectionHeader>Dark Forest Ares {GAME_VERSION_INTRO}</SectionHeader>
+          <SectionHeader>Dark Forest Punk {GAME_VERSION_INTRO}</SectionHeader>
           {/* The game is a vast universe, obfuscated by zero-knowledge cryptography. Your{' '}
           <White>explorer</White> (bottom left) explores the universe, searching for{' '}
           <White>Planets</White> and other players.
@@ -131,7 +131,7 @@ export function HelpPane({ visible, onClose }: { visible: boolean; onClose: () =
           <div>
             Please read{' '}
             <Link to={PLAYER_GUIDE} color='pink'>
-              DFAres {GAME_VERSION_INTRO} Guide
+              DFPunk {GAME_VERSION_INTRO} Guide
             </Link>{' '}
             to know how to play.
           </div>
@@ -140,14 +140,14 @@ export function HelpPane({ visible, onClose }: { visible: boolean; onClose: () =
             <Link to='https://twitter.com/DFArchon' color={dfstyles.colors.dfpink}>
               DFArchon team
             </Link>{' '}
-            host <Pink>Dark Forest Ares</Pink> {GAME_VERSION_INTRO} on{' '}
+            host <Pink>Dark Forest Punk</Pink> {GAME_VERSION_INTRO} on{' '}
             <Link to={BLOCK_EXPLORER_URL} color={dfstyles.colors.dfgreen}>
               {BLOCKCHAIN_NAME}
             </Link>
             .
           </div>
           <div>
-            <Pink>Dark Forest Ares</Pink> is a community-run deployment of{' '}
+            <Pink>Dark Forest Punk</Pink> is a community-run deployment of{' '}
             <Link to='https://zkga.me' color={dfstyles.colors.dfgreen}>
               Dark Forest
             </Link>

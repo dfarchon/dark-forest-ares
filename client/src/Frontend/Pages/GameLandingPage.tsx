@@ -293,7 +293,7 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
   const printPostUniverseWelcome = useCallback(
     (terminal: React.MutableRefObject<TerminalHandle | undefined>) => {
       terminal.current?.clear();
-      terminal.current?.println('Welcome to the Dark Forest Ares.', TerminalTextStyle.Green);
+      terminal.current?.println('Welcome to the Dark Forest Punk.', TerminalTextStyle.Green);
       terminal.current?.println('');
       terminal.current?.println(
         "This is the Dark Forest interactive JavaScript terminal. Only use this if you know exactly what you're doing."
@@ -505,7 +505,7 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
         if (isLobby) {
           terminal.current?.newline();
           terminal.current?.printElement(
-            <MythicLabelText text={`You are joining a Dark Forest Ares lobby`} />
+            <MythicLabelText text={`You are joining a Dark Forest Punk lobby`} />
           );
           terminal.current?.newline();
           terminal.current?.newline();
@@ -1251,10 +1251,10 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
       window.ui = newGameUIManager;
 
       terminal.current?.newline();
-      terminal.current?.println('Connected to Dark Forest Ares Contract');
+      terminal.current?.println('Connected to Dark Forest Punk Contract');
 
       terminal.current?.newline();
-      terminal.current?.println('Welcome to DARK FOREST ARES.');
+      terminal.current?.println('Welcome to DARK FOREST PUNK.');
       terminal.current?.newline();
       //NOTE: round 4 don't collect those information
       // terminal.current?.println('We collect a minimal set of statistics such as SNARK proving');
@@ -2003,7 +2003,7 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
         </GameWindowWrapper>
         <TerminalWrapper initRender={initRenderState} terminalEnabled={terminalVisible}>
           <MythicLabelText
-            text={`Welcome To Dark Forest Ares ${GAME_VERSION_INTRO}`}
+            text={`Welcome To Dark Forest Punk ${GAME_VERSION_INTRO}`}
             style={{
               fontFamily: "'Start Press 2P', sans-serif",
               display: initRenderState !== InitRenderState.COMPLETE ? 'block' : 'none',

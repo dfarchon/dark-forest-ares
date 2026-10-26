@@ -36,8 +36,8 @@ const DFARES = {
   legacy: false,
   topLayer: [URL + '/img/logo/DFARES.png'],
   bottomLayer: [],
-  name: 'Dark Forest Ares',
-  desc: 'Dark Forest Ares is a series of Dark Forest community rounds hosted by the DF Archon team. \
+  name: 'Dark Forest Punk',
+  desc: 'Dark Forest Punk is a series of Dark Forest community rounds hosted by the DF Archon team. \
    We hope to develop and explore new game mechanics whilst maintaining the original style and excitement of Dark Forest. ',
   color: 'pink',
   website: 'https://ares.dfpunk.xyz/',

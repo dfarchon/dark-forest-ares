@@ -358,7 +358,7 @@ contract DFArtifactFacet is WithStorage, ERC721 {
                     abi.encodePacked(
                         '{"name": "Artifact #',
                         LibArtifactExtendUtils.toHexString(tokenId),
-                        '", "description": "The artifacts are gifts from Dark Forest Ares universe.", "image": "data:image/svg+xml;base64,',
+                        '", "description": "The artifacts are gifts from Dark Forest Punk universe.", "image": "data:image/svg+xml;base64,',
                         LibArtifactExtendUtils.encode(bytes(output)),
                         '"}'
                     )

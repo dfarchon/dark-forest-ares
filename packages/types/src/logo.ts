@@ -38,7 +38,7 @@ export const LogoType = {
 export const LogoTypeNames = {
   [LogoType.Unknown]: 'Unknown',
   [LogoType.DarkForest]: 'Dark Forest',
-  [LogoType.DFARES]: 'DFAres',
+  [LogoType.DFARES]: 'DFPunk',
   [LogoType.DFArchon]: 'DFArchon',
   [LogoType.Redstone]: 'Redstone',
   [LogoType.Lattice]: 'Lattice',

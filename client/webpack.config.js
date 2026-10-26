@@ -132,6 +132,7 @@ module.exports = {
     new CopyPlugin({
       patterns: [
         { from: 'public', to: 'public' },
+        { from: 'public/favicon.ico', to: 'favicon.ico' },
         {
           from: path.resolve(__dirname, '../eth/booth/accounts.json'),
           to: 'public/booth-accounts.json',

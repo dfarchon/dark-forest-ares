@@ -55,7 +55,7 @@ function OnboardMoney({ advance }: { advance: () => void }) {
   return (
     <StyledOnboardingContent>
       <p>
-        Welcome to <Green>Dark Forest Ares</Green>!
+        Welcome to <Green>Dark Forest Punk</Green>!
       </p>
       <p>
         <Red>There is real money being transacted in-game!</Red> Game client have initialized a{' '}
@@ -72,7 +72,7 @@ function OnboardMoney({ advance }: { advance: () => void }) {
         </White>
       </p>
       <p>
-        This means that when you make moves on Dark Forest Ares,{' '}
+        This means that when you make moves on Dark Forest Punk,{' '}
         <White> you are authorizing the client to pay gas fees on your behalf</White>.
       </p>
       <p>
@@ -104,7 +104,7 @@ function OnboardStorage({ advance }: { advance: () => void }) {
       </p>
       <p>
         Your <White>private key and home coordinates</White> act as your password. You can use them
-        to access your Dark Forest Ares account on other browsers, or to continue playing if you
+        to access your Dark Forest Punk account on other browsers, or to continue playing if you
         accidentally clear local storage. But this also means{' '}
         <Red>they should never be viewed by anyone else!</Red>
       </p>
@@ -186,7 +186,7 @@ function OnboardFinished({ advance }: { advance: () => void }) {
       <p>That's all! You're now ready to play the game!</p>
       <p>
         We invite you to log into the universe. Click <White>Proceed</White> to join the world of{' '}
-        <White>DARK FOREST ARES...</White>
+        <White>DARK FOREST PUNK...</White>
       </p>
       <div>
         <span></span>
@@ -218,7 +218,7 @@ export default function OnboardingPane({
   return (
     <ModalPane
       id={ModalName.Onboarding}
-      title={'Welcome to Dark Forest Ares'}
+      title={'Welcome to Dark Forest Punk'}
       hideClose
       visible={visible}
       onClose={onClose}

@@ -21,7 +21,7 @@ function TutorialPaneContent({ tutorialState }: { tutorialState: TutorialState }
   if (tutorialState === TutorialState.None) {
     return (
       <div className='tutintro'>
-        Welcome to the universe of <White>DARK FOREST ARES</White>. Would you like to play the
+        Welcome to the universe of <White>DARK FOREST PUNK</White>. Would you like to play the
         tutorial?
         <div>
           <Btn className='btn' onClick={() => tutorialManager.acceptInput(TutorialState.None)}>
@@ -204,7 +204,7 @@ function TutorialPaneContent({ tutorialState }: { tutorialState: TutorialState }
       <div className='tutalmost'>
         {/* Winners of each round of Dark Forest v0.6.x will receive a prize, and be added to the{' '}
         <Underline>Valhalla</Underline> universe. */}
-        Winners of each round of Dark Forest Ares v0.1 will get mysterious prizes 🎩
+        Winners of each round of Dark Forest Punk v0.1 will get mysterious prizes 🎩
         <br />
         <br />
         To win, have the highest score (^:
@@ -221,7 +221,7 @@ function TutorialPaneContent({ tutorialState }: { tutorialState: TutorialState }
         This is the end of the tutorial. Go out and explore the universe! More information will pop
         up in the <White>upper-right</White> as you discover more about the game.
         <br />
-        We hope you enjoy Dark Forest Ares!
+        We hope you enjoy Dark Forest Punk!
         <div>
           <Btn className='btn' onClick={() => tutorialManager.complete()}>
             Finish

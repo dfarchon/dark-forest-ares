@@ -1,4 +1,4 @@
-# Dark Forest Ares
+# Dark Forest Punk
 
 ![node](https://img.shields.io/badge/node-24.22.1-43853d)
 ![yarn](https://img.shields.io/badge/yarn-4-2c8ebb)
@@ -19,7 +19,7 @@ Dark Forest is a fully onchain ZK war game of exploration, strategy, and
 conquest. The original project was developed by the Dark Forest official team
 from 2019 to Q1 2022.
 
-Dark Forest Ares is a community-maintained branch by the DFArchon team. The
+Dark Forest Punk is a community-maintained branch by the DFArchon team. The
 original Ares line ran from Q1 2023 to Q2 2024, and the project is now active
 again with a new 2026 test round.
 
@@ -58,7 +58,7 @@ Open `http://localhost:8081`.
 
 `Solidity` / `Hardhat` / `TypeScript` / `React` / `WebGL` / `SNARKs`
 
-Dark Forest Ares is organized as a full onchain game stack:
+Dark Forest Punk is organized as a full onchain game stack:
 
 - `circuits/` defines the zero-knowledge circuits for hidden movement and
   exploration. Players produce proofs from these circuits; the contracts verify
@@ -76,7 +76,7 @@ state into playable strategy.
 
 ## Ares Versions
 
-Dark Forest Ares evolved across four community rounds, then returned to active
+Dark Forest Punk evolved across four community rounds, then returned to active
 development with a new 2026 test round.
 
 - `2023 May` / `v0.1.1` - introduced Fire Link, Ice Link, Stellar Shield, and

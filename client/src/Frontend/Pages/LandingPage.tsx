@@ -1,4 +1,4 @@
-import { BLOCKCHAIN_NAME, PLAYER_GUIDE } from '@dfares/constants';
+import { PLAYER_GUIDE } from '@dfares/constants';
 import { CONTRACT_ADDRESS } from '@dfares/contracts';
 import { address } from '@dfares/serde';
 import React from 'react';
@@ -7,7 +7,6 @@ import styled, { css } from 'styled-components';
 import { Spacer } from '../Components/CoreUI';
 import { useEnterUniverse } from '../hooks/useEnterUniverse';
 import dfstyles from '../Styles/dfstyles';
-import { LandingPageRoundArt } from '../Views/LandingPageRoundArt';
 import { UniverseEnterTransition } from '../Views/UniverseEnterTransition';
 
 export const enum LandingPageZIndex {
@@ -48,15 +47,23 @@ const ButtonWrapper = styled.div`
   flex-direction: row;
   margin-bottom: 24px;
 
+  > * {
+    box-sizing: border-box;
+    width: 240px;
+    justify-content: center;
+    text-align: center;
+  }
+
   @media only screen and (max-device-width: 1000px) {
-    grid-template-columns: auto;
     flex-direction: column;
   }
 `;
 
 const EnterButton = styled.button`
+  display: inline-flex;
+  align-items: center;
   min-height: 42px;
-  padding: 0 32px;
+  padding: 0 16px;
   border: 1px solid rgba(255, 195, 205, 0.42);
   border-radius: 4px;
   color: #ffc3cd;
@@ -118,13 +125,9 @@ export default function LandingPage() {
             </LinkContainer> */}
 
             <HeroPanel>
-              <HeroArt>
-                <LandingPageRoundArt onEnter={enterUniverse} />
-              </HeroArt>
-
-              <HeroTitle>Dark Forest Ares v0.1 R5</HeroTitle>
+              <HeroTitle>Dark Forest Punk</HeroTitle>
               <RoundLine>
-                <RoundNetworkBadge>Live on {BLOCKCHAIN_NAME}</RoundNetworkBadge>
+                <RoundNetworkBadge>Special edition for Devcon Mumbai</RoundNetworkBadge>
               </RoundLine>
 
               <IntroText>
@@ -135,29 +138,27 @@ export default function LandingPage() {
                   The original project was developed by the Dark Forest official team from 2019 to
                   Q1 2022.
                 </p>
-                <p>Dark Forest Ares is a community-maintained branch by DFArchon team.</p>
+                <p>Dark Forest Punk is the community-maintained branch by DFArchon team.</p>
 
-                <p>Dark Forest Ares was actively developed from Q1 2023 to Q2 2024.</p>
-                <p>After that, the DFArchon team ported Dark Forest to the MUD engine.</p>
                 <p>
                   Follow the latest updates at{' '}
-                  <InlineLink href='https://x.com/darkforest_punk' target='_blank' rel='noreferrer'>
-                    x.com/darkforest_punk
+                  <InlineLink href='https://x.com/dfarchon' target='_blank' rel='noreferrer'>
+                    x.com/dfarchon
                   </InlineLink>
                   .
                 </p>
               </IntroText>
 
               <ButtonWrapper>
-                <EnterButton onClick={enterUniverse} disabled={isEntering}>
-                  Enter Universe
-                </EnterButton>
                 <EnterButton
                   type='button'
                   onClick={() => history.push('/booth')}
                   disabled={isEntering}
                 >
                   Enter Booth
+                </EnterButton>
+                <EnterButton onClick={enterUniverse} disabled={isEntering}>
+                  Enter Universe
                 </EnterButton>
                 <GuideLink href={DFArchonLinks.guide} target='_blank' rel='noreferrer'>
                   Player Guide
@@ -434,13 +435,6 @@ const RoundNetworkBadge = styled.span`
   letter-spacing: 0.04em;
 `;
 
-const HeroArt = styled.div`
-  display: flex;
-  justify-content: center;
-  margin: 10px 0 22px;
-  filter: drop-shadow(0 0 14px rgba(255, 59, 59, 0.28));
-`;
-
 const IntroText = styled.div`
   max-width: 820px;
   margin: 0 auto 28px;
@@ -472,8 +466,9 @@ const GuideLink = styled.a`
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   min-height: 42px;
-  padding: 0 18px;
+  padding: 0 16px;
   border: 1px solid rgba(255, 195, 205, 0.42);
   border-radius: 4px;
   color: var(--chain-quiet);
