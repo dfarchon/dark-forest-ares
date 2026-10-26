@@ -5,19 +5,26 @@ import * as path from 'path';
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
+const BOOLEAN_FLAGS = new Set(['force']);
+
 export function parseArgs(argv: string[]): Record<string, string> {
   const args: Record<string, string> = {};
   for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (!arg.startsWith('--')) continue;
-    const key = arg.slice(2);
-    const next = argv[i + 1];
-    if (next && !next.startsWith('--')) {
-      args[key] = next;
-      i++;
-    } else {
+    const token = argv[i];
+    if (token === '--') continue;
+    const key = token.startsWith('--') ? token.slice(2) : token;
+    if (key.length === 0) continue;
+    if (BOOLEAN_FLAGS.has(key)) {
       args[key] = 'true';
+      continue;
     }
+    const next = argv[i + 1];
+    if (next === undefined || next === '--' || next.startsWith('--')) {
+      args[key] = 'true';
+      continue;
+    }
+    args[key] = next;
+    i++;
   }
   return args;
 }
@@ -54,7 +61,7 @@ export function resolveRpcUrl(network?: string, rpc?: string): string {
   }
   if (process.env.RPC_URL) return process.env.RPC_URL;
   throw new Error(
-    `No RPC for network ${selected ?? 'unset'}. Set the matching URL in eth/.env, or pass --network / --rpc.`
+    `No RPC for network ${selected ?? 'unset'}. Set the matching URL in eth/.env, or pass network / rpc.`
   );
 }
 

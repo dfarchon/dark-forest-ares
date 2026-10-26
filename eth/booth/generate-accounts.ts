@@ -54,11 +54,11 @@ async function main() {
   const force = args.force === 'true';
 
   if (!Number.isInteger(count) || count < 1 || count > 64) {
-    throw new Error('Invalid --count. Use an integer from 1 to 64.');
+    throw new Error('Invalid count. Use an integer from 1 to 64.');
   }
   if (fs.existsSync(ACCOUNTS_PATH) && !force) {
     throw new Error(
-      `Refusing to overwrite ${ACCOUNTS_PATH}. Run again with --force to replace it.`
+      `Refusing to overwrite ${ACCOUNTS_PATH}. Run again with force to replace it.`
     );
   }
 

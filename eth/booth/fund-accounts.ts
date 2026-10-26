@@ -22,7 +22,7 @@ function readCommand(argv: string[]): { command: Command; rest: string[] } {
   }
   if (command !== 'check' && command !== 'fund' && command !== 'ensure' && command !== 'whitelist') {
     throw new Error(
-      'Usage: booth:fund -- <check|fund|ensure|whitelist> [--value <eth>] [--network <name> | --rpc <url>] [--dry false]'
+      'Usage: booth:fund <check|fund|ensure|whitelist> [value <eth>] [network <name> | rpc <url>] [dry false]'
     );
   }
   return { command, rest };
@@ -38,20 +38,20 @@ async function main() {
   const valueStr = args.value;
 
   if (Number.isNaN(accountIndex) || accountIndex < 0) {
-    throw new Error(`Invalid --index: ${args.index}`);
+    throw new Error(`Invalid index: ${args.index}`);
   }
   if (Number.isNaN(gasPriceGwei) || gasPriceGwei <= 0) {
-    throw new Error(`Invalid --gaspricegwei: ${args.gaspricegwei}`);
+    throw new Error(`Invalid gaspricegwei: ${args.gaspricegwei}`);
   }
   if (!Number.isInteger(confirmations) || confirmations < 1) {
-    throw new Error(`Invalid --confirmations: ${args.confirmations}`);
+    throw new Error(`Invalid confirmations: ${args.confirmations}`);
   }
 
   let target: ethers.BigNumber | undefined;
   if (command === 'fund' || command === 'ensure') {
     const value = valueStr ? parseFloat(valueStr) : NaN;
     if (!valueStr || Number.isNaN(value) || value <= 0) {
-      throw new Error(`${command} requires --value <eth amount>`);
+      throw new Error(`${command} requires value <eth amount>`);
     }
     target = ethers.utils.parseEther(value.toString());
   }
@@ -91,7 +91,7 @@ async function main() {
   console.log(`Admin balance: ${ethers.utils.formatEther(await admin.getBalance())}`);
   console.log(`RPC: ${rpcUrl}`);
   if (command !== 'check') {
-    console.log(dry ? 'Dry run. Pass --dry false to send transactions.' : 'Sending transactions.');
+    console.log(dry ? 'Dry run. Pass dry false to send transactions.' : 'Sending transactions.');
   }
 
   const contract = new ethers.Contract(CONTRACT_ADDRESS, BOOTH_ADMIN_ABI, admin);
