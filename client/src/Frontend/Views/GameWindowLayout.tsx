@@ -11,6 +11,7 @@ import {
 } from '../Components/GameWindowComponents';
 import ControllableCanvas from '../Game/ControllableCanvas';
 import { ArtifactHoverPane } from '../Panes/ArtifactHoverPane';
+import { BoothGuidePane } from '../Panes/BoothGuide/BoothGuidePane';
 import { CoordsPane } from '../Panes/CoordsPane';
 import { DiagnosticsPane } from '../Panes/DiagnosticsPane';
 import { ExplorePane } from '../Panes/ExplorePane';
@@ -31,6 +32,7 @@ import { TwitterVerifyPane } from '../Panes/TwitterVerifyPane';
 import UnionContextPane from '../Panes/UnionPane';
 import { ZoomPane } from '../Panes/ZoomPane';
 import { useSelectedPlanet, useUIManager } from '../Utils/AppHooks';
+import { boothAccountIdFromSearch } from '../Utils/exhibition';
 import { useOnUp } from '../Utils/KeyEmitters';
 import { useBooleanSetting } from '../Utils/SettingsHooks';
 import {
@@ -369,6 +371,7 @@ export function GameWindowLayout({
           <HoverPlanetPane />
           <ArtifactHoverPane />
           <TutorialPane tutorialHook={tutorialHook} />
+          {boothAccountIdFromSearch(window.location.search) && <BoothGuidePane />}
         </CanvasContainer>
       </MainWindow>
     </WindowWrapper>
