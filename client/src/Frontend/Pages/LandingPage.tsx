@@ -3,8 +3,9 @@ import { CONTRACT_ADDRESS } from '@dfares/contracts';
 import { address } from '@dfares/serde';
 import React from 'react';
 import { useHistory } from 'react-router-dom';
-import styled, { css } from 'styled-components';
+import styled, { css, keyframes } from 'styled-components';
 import { Spacer } from '../Components/CoreUI';
+import { PunkMark } from '../Components/PunkMark';
 import { useEnterUniverse } from '../hooks/useEnterUniverse';
 import dfstyles from '../Styles/dfstyles';
 import { UniverseEnterTransition } from '../Views/UniverseEnterTransition';
@@ -59,7 +60,21 @@ const ButtonWrapper = styled.div`
   }
 `;
 
-const EnterButton = styled.button`
+const boothBreath = keyframes`
+  0%,
+  100% {
+    border-color: rgba(255, 195, 205, 0.42);
+    background: rgba(255, 195, 205, 0.08);
+    box-shadow: 0 0 6px rgba(255, 180, 193, 0.12);
+  }
+  50% {
+    border-color: #ffb4c1;
+    background: rgba(255, 180, 193, 0.2);
+    box-shadow: 0 0 16px rgba(255, 180, 193, 0.7), 0 0 36px rgba(255, 59, 59, 0.32);
+  }
+`;
+
+const EnterButton = styled.button<{ $breathe?: boolean }>`
   display: inline-flex;
   align-items: center;
   min-height: 42px;
@@ -73,6 +88,18 @@ const EnterButton = styled.button`
   cursor: pointer;
   transition: border-color 0.2s, color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.2s;
 
+  ${({ $breathe }) =>
+    $breathe &&
+    css`
+      animation: ${boothBreath} 2.4s ease-in-out infinite;
+
+      @media (prefers-reduced-motion: reduce) {
+        animation: none;
+        border-color: #ffb4c1;
+        box-shadow: 0 0 16px rgba(255, 180, 193, 0.5);
+      }
+    `}
+
   &:hover:not(:disabled),
   &:focus:not(:disabled) {
     color: white;
@@ -80,11 +107,13 @@ const EnterButton = styled.button`
     border-color: #ffb4c1;
     box-shadow: 0 0 18px rgba(255, 180, 193, 0.4);
     transform: translateY(-1px);
+    animation-play-state: paused;
   }
 
   &:disabled {
     cursor: default;
     opacity: 0.65;
+    animation: none;
   }
 `;
 
@@ -125,6 +154,7 @@ export default function LandingPage() {
             </LinkContainer> */}
 
             <HeroPanel>
+              <PunkMark />
               <HeroTitle>Dark Forest Punk</HeroTitle>
               <RoundLine>
                 <RoundNetworkBadge>Special edition for Devcon Mumbai</RoundNetworkBadge>
@@ -152,6 +182,7 @@ export default function LandingPage() {
               <ButtonWrapper>
                 <EnterButton
                   type='button'
+                  $breathe
                   onClick={() => history.push('/booth')}
                   disabled={isEntering}
                 >
