@@ -25,15 +25,15 @@ const copy: Record<'selectMovePlanet' | 'setEnergy' | 'pressSend' | 'clickNearby
   },
   setEnergy: {
     label: 'Choose how much energy to send',
-    hint: 'Increase the slider until there is enough energy to reach a nearby planet.',
+    hint: 'Energy is lost during travel. Increase the slider to reach a nearby planet, while leaving some energy at home.',
     button: 'Choose an amount for me',
     assistLead: 'We can choose an amount:',
     running: 'Choosing an amount to send.',
-    done: 'That amount is ready to send.',
+    done: 'That amount can reach a nearby planet. Reaching it does not guarantee capture.',
   },
   pressSend: {
     label: 'Press Send',
-    hint: 'Press Send on your planet.',
+    hint: 'Press Send on your planet to choose a target. This button alone does not send a fleet.',
     button: 'Press Send',
     assistLead: 'We can press Send:',
     running: 'Pressing Send.',
@@ -41,7 +41,7 @@ const copy: Record<'selectMovePlanet' | 'setEnergy' | 'pressSend' | 'clickNearby
   },
   clickNearby: {
     label: 'Click a nearby planet',
-    hint: 'Zoom and move the map until you find a target planet, then click it to send the energy.',
+    hint: 'Click a nearby planet to send the energy. To capture a planet you do not own, the arriving energy must overcome its defense. Press Esc to cancel target selection.',
     button: 'Send to a nearby planet',
     assistLead: 'We can send it for you:',
     running: 'Sending energy to a nearby planet.',
@@ -52,7 +52,7 @@ const copy: Record<'selectMovePlanet' | 'setEnergy' | 'pressSend' | 'clickNearby
 const PENDING_DESTINATION = '__booth-guide-pending-destination__';
 
 function MoveIntro() {
-  return <p>Select a planet, then send its energy to another planet.</p>;
+  return <p>Send your first fleet. Energy reinforces your planets or attacks other planets.</p>;
 }
 
 function moveSourcePlanet(ui: GameUIManager): LocatablePlanet | undefined {
@@ -92,7 +92,7 @@ function openMove(ui: GameUIManager, step: StepId): void {
 }
 
 function watchMove(hooks: WatchHooks): () => void {
-  const { ui, stepId, finish, reject, notify, isSettled, moveSeen } = hooks;
+  const { ui, stepId, finish, restart, notify, isSettled, isRunning, moveSeen } = hooks;
 
   if (stepId === 'selectMovePlanet') {
     let ready = false;
@@ -149,20 +149,39 @@ function watchMove(hooks: WatchHooks): () => void {
   const key = moveDestinationKey(ui);
   localStorage.setItem(key, PENDING_DESTINATION);
   moveSeen.current = PENDING_DESTINATION;
+  const returnToSend = (message: string) => {
+    const selected = ui.getSelectedPlanet();
+    const hasSource =
+      selected && isLocatable(selected) && ui.isOwnedByMe(selected) && selected.energy > 1;
+    restart(
+      hasSource ? 'pressSend' : 'selectMovePlanet',
+      hasSource ? message : 'Select one of your planets with energy to start sending again.'
+    );
+  };
+  const onCancelled = () => {
+    // Helpers can select a source before sending, which also emits SendCancelled.
+    // A completed move must retain its completion message and page countdown.
+    if (isSettled() || isRunning()) return;
+    returnToSend('Target selection cancelled. Press Send when you are ready to choose a target.');
+  };
   const onSent = (sentFromId?: string) => {
     if (isSettled()) return;
     if (sourceId && sentFromId && sentFromId !== sourceId) return;
     const toId = localStorage.getItem(key);
     if (!toId || toId === PENDING_DESTINATION) {
-      reject('The move was not sent. Increase the energy or choose a planet in range.');
+      returnToSend('The move was not sent. Adjust the energy, then press Send to try again.');
       return;
     }
     moveSeen.current = toId;
     finish();
   };
   const uiEmitter = UIEmitter.getInstance();
+  uiEmitter.on(UIEmitterEvent.SendCancelled, onCancelled);
   uiEmitter.on(UIEmitterEvent.SendCompleted, onSent);
-  return () => uiEmitter.removeListener(UIEmitterEvent.SendCompleted, onSent);
+  return () => {
+    uiEmitter.removeListener(UIEmitterEvent.SendCancelled, onCancelled);
+    uiEmitter.removeListener(UIEmitterEvent.SendCompleted, onSent);
+  };
 }
 
 async function assistMove(hooks: AssistHooks): Promise<void> {

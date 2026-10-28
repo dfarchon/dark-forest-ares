@@ -72,6 +72,7 @@ export type WatchHooks = {
   finish: () => void;
   reject: (message: string) => void;
   notify: (message: string) => void;
+  restart: (step: StepId, message: string) => void;
   showCoach: (text: string | null) => void;
   releaseTour: () => void;
   stopTour: () => void;
@@ -951,9 +952,10 @@ function CoverCopy({ onStart }: { onStart: () => void }) {
     <>
       <p>Dark Forest is a fully onchain ZK warfare of exploration, strategy, and conquest.</p>
       <p>
-        Following the prompts in the guide will give you a basic understanding of how to interact
-        with the universe.
+        Your first mission: find your home planet, send a fleet to a nearby planet, and explore the
+        dark parts of the map.
       </p>
+      <p>Follow the highlighted step. If you get stuck, use the helper button below it.</p>
       <BrightAction>
         <Btn size='stretch' onClick={onStart}>
           Start guide
@@ -1139,7 +1141,9 @@ export function BoothGuidePane() {
       if (page === 'cover') {
         stopHomeReturn.current = playDampedReturn(homeRestFrame(uiManager, Viewport.getInstance()));
       } else if (page === 'move' && stepId === 'selectMovePlanet') {
-        stopHomeReturn.current = playDampedReturn(moveGuideFrame(uiManager, Viewport.getInstance()));
+        stopHomeReturn.current = playDampedReturn(
+          moveGuideFrame(uiManager, Viewport.getInstance())
+        );
       } else if (page === 'fog' && (enteringFog || !minerAlreadyFramed(uiManager))) {
         stopHomeReturn.current = playMinedReveal(minerCenterFrame(uiManager));
       }
@@ -1165,6 +1169,12 @@ export function BoothGuidePane() {
           finish,
           reject,
           notify: (message) => setNotice(message),
+          restart: (nextStep, message) => {
+            if (settled) return;
+            settled = true;
+            openRef.current(page, nextStep);
+            setNotice(message);
+          },
           showCoach,
           releaseTour,
           stopTour: stopCameraTour,

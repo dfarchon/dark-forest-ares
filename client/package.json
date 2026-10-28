@@ -62,7 +62,8 @@
   },
   "scripts": {
     "declarations": "tsc -p tsconfig.decs.json",
-    "test": "exit 0",
+    "test": "yarn test:booth-guide",
+    "test:booth-guide": "node --test test/booth-guide.test.cjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "start:dev": "webpack-dev-server --mode development --hot",

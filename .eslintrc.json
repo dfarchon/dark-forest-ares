@@ -42,6 +42,7 @@
       {
         "devDependencies": [
           "**/client/webpack.config.js",
+          "**/client/test/**/*.cjs",
           "**/eth/**/*.ts",
           "**/webserver/test/*.test.ts"
         ],
