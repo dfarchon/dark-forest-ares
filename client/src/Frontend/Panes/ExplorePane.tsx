@@ -161,16 +161,18 @@ export function ExplorePane() {
     <StyledExplorePane>
       {/* button which allows player to preposition the center of their miner */}
       <TooltipTrigger style={{ display: 'inline-block' }} name={TooltipName.MiningTarget}>
-        <MaybeShortcutButton
-          onClick={doTarget}
-          onShortcutPressed={doTarget}
-          shortcutKey={TOGGLE_TARGETTING}
-          shortcutText={TOGGLE_TARGETTING}
-        >
-          {targetting ? 'Moving...' : 'Move'}
-          <EmSpacer width={1} />
-          <Icon type={IconType.Target} />
-        </MaybeShortcutButton>
+        <span data-booth-target='explore-move' style={{ display: 'inline-block' }}>
+          <MaybeShortcutButton
+            onClick={doTarget}
+            onShortcutPressed={doTarget}
+            shortcutKey={TOGGLE_TARGETTING}
+            shortcutText={TOGGLE_TARGETTING}
+          >
+            {targetting ? 'Moving...' : 'Move'}
+            <EmSpacer width={1} />
+            <Icon type={IconType.Target} />
+          </MaybeShortcutButton>
+        </span>
       </TooltipTrigger>
       <EmSpacer width={0.5} />
       {/* button which toggles whether or not the game is mining. this persists between refreshes */}

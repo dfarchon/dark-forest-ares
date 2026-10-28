@@ -2,6 +2,7 @@ import { isLocatable } from '@dfares/gamelogic';
 import { LocatablePlanet } from '@dfares/types';
 import React from 'react';
 import GameUIManager from '../../../Backend/GameLogic/GameUIManager';
+import Viewport from '../../Game/Viewport';
 import UIEmitter, { UIEmitterEvent } from '../../Utils/UIEmitter';
 import type { AssistHooks, GuidePage, StepCopy, StepId, WatchHooks } from './BoothGuidePane';
 import {
@@ -17,7 +18,7 @@ import {
 const copy: Record<'selectMovePlanet' | 'setEnergy' | 'pressSend' | 'clickNearby', StepCopy> = {
   selectMovePlanet: {
     label: 'Select one of your planets',
-    hint: 'Click one of your planets that has energy.',
+    hint: 'Click the planet with the pink ring.',
     button: 'Select my planet',
     assistLead: 'We can select one for you:',
     running: 'Selecting one of your planets.',
@@ -41,7 +42,7 @@ const copy: Record<'selectMovePlanet' | 'setEnergy' | 'pressSend' | 'clickNearby
   },
   clickNearby: {
     label: 'Click a nearby planet',
-    hint: 'Zoom and move the map until you find a target planet, then click it to send the energy.',
+    hint: 'Click a nearby planet with a pink ring.',
     button: 'Send to a nearby planet',
     assistLead: 'We can send it for you:',
     running: 'Sending energy to a nearby planet.',
@@ -55,12 +56,16 @@ function MoveIntro() {
   return <p>Select a planet, then send its energy to another planet.</p>;
 }
 
-function moveSourcePlanet(ui: GameUIManager): LocatablePlanet | undefined {
+function selectedMovePlanet(ui: GameUIManager): LocatablePlanet | undefined {
   const selected = ui.getSelectedPlanet();
   if (selected && isLocatable(selected) && ui.isOwnedByMe(selected) && selected.energy > 1) {
     return selected;
   }
-  return sourcePlanet(ui);
+  return undefined;
+}
+
+function moveSourcePlanet(ui: GameUIManager): LocatablePlanet | undefined {
+  return selectedMovePlanet(ui) ?? sourcePlanet(ui);
 }
 
 function canReachNearbyPlanet(ui: GameUIManager, from: LocatablePlanet, percent: number): boolean {
@@ -73,6 +78,142 @@ function sufficientSendPercent(ui: GameUIManager, from: LocatablePlanet): number
     if (canReachNearbyPlanet(ui, from, percent)) return percent;
   }
   return canReachNearbyPlanet(ui, from, 98) ? 98 : undefined;
+}
+
+function ownedEnergyPlanets(ui: GameUIManager): LocatablePlanet[] {
+  return ui
+    .getGameManager()
+    .getMyPlanets()
+    .filter(
+      (planet): planet is LocatablePlanet =>
+        isLocatable(planet) && ui.isOwnedByMe(planet) && planet.energy > 1
+    );
+}
+
+const VIEW_RIM = 0.75;
+
+function viewPlacement(planet: LocatablePlanet): { rim: number; center: number } {
+  const viewport = Viewport.getInstance();
+  const center = viewport.getViewportPosition();
+  const halfW = viewport.getViewportWorldWidth() / 2;
+  const halfH = viewport.getViewportWorldHeight() / 2;
+  if (halfW <= 0 || halfH <= 0) return { rim: 0, center: 0 };
+  const nx = Math.abs(planet.location.coords.x - center.x) / halfW;
+  const ny = Math.abs(planet.location.coords.y - center.y) / halfH;
+  return { rim: Math.max(nx, ny), center: Math.hypot(nx, ny) };
+}
+
+export function guideMovePlanet(ui: GameUIManager): LocatablePlanet | undefined {
+  const placed = ownedEnergyPlanets(ui).map((planet) => ({ planet, ...viewPlacement(planet) }));
+  const inner = placed.filter((item) => item.rim <= VIEW_RIM);
+  const pool = (inner.length > 0 ? inner : placed).slice();
+  pool.sort(
+    (a, b) =>
+      a.center - b.center ||
+      b.planet.energy - a.planet.energy ||
+      a.planet.locationId.localeCompare(b.planet.locationId)
+  );
+  return pool[0]?.planet;
+}
+
+function planetsInSendRange(
+  ui: GameUIManager,
+  from: LocatablePlanet,
+  percent: number
+): LocatablePlanet[] {
+  try {
+    return ui
+      .getGameManager()
+      .getPlanetsInRange(from.locationId, percent, false)
+      .filter(
+        (planet): planet is LocatablePlanet =>
+          isLocatable(planet) && planet.locationId !== from.locationId
+      );
+  } catch {
+    return [];
+  }
+}
+
+function gameCanvas(): HTMLCanvasElement | null {
+  const list = document.querySelectorAll('canvas:not(#buffer)');
+  const canvas = list.item(1) ?? list.item(0);
+  return canvas instanceof HTMLCanvasElement ? canvas : null;
+}
+
+function planetScreenSpot(
+  ui: GameUIManager,
+  planet: LocatablePlanet
+): { x: number; y: number; radius: number } | null {
+  let viewport: Viewport;
+  try {
+    viewport = Viewport.getInstance();
+  } catch {
+    return null;
+  }
+  const canvas = gameCanvas();
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width < 2 || rect.height < 2) return null;
+  const local = viewport.worldToCanvasCoords(planet.location.coords);
+  const scale = canvas.width > 0 ? rect.width / canvas.width : 1;
+  const rad = Math.max(ui.getRadiusOfPlanetLevel(planet.planetLevel), 1);
+  return {
+    x: rect.left + local.x * scale,
+    y: rect.top + local.y * (canvas.height > 0 ? rect.height / canvas.height : 1),
+    radius: Math.max(viewport.worldToCanvasDist(rad) * scale, 10),
+  };
+}
+
+function underGuidePanel(ui: GameUIManager, planet: LocatablePlanet): boolean {
+  const panel = document.querySelector('[data-booth-panel]');
+  if (!(panel instanceof HTMLElement)) return false;
+  const panelRect = panel.getBoundingClientRect();
+  if (panelRect.width < 2 || panelRect.height < 2) return false;
+  const spot = planetScreenSpot(ui, planet);
+  if (!spot) return false;
+  const pad = 16;
+  const left = panelRect.left - pad;
+  const right = panelRect.right + pad;
+  const top = panelRect.top - pad;
+  const bottom = panelRect.bottom + pad;
+  const x = Math.max(left, Math.min(spot.x, right));
+  const y = Math.max(top, Math.min(spot.y, bottom));
+  return (spot.x - x) ** 2 + (spot.y - y) ** 2 <= spot.radius ** 2;
+}
+
+function guideNearbyPlanet(
+  ui: GameUIManager,
+  from: LocatablePlanet,
+  percent: number
+): LocatablePlanet | undefined {
+  const onScreen = planetsInSendRange(ui, from, percent)
+    .map((planet) => ({ planet, ...viewPlacement(planet) }))
+    .filter((item) => item.rim <= 1);
+  if (onScreen.length === 0) return pickTarget(ui, from, false, percent);
+  const clear = onScreen.filter((item) => !underGuidePanel(ui, item.planet));
+  const pool = clear.length > 0 ? clear : onScreen;
+  pool.sort(
+    (a, b) => a.center - b.center || a.planet.locationId.localeCompare(b.planet.locationId)
+  );
+  return pool[0].planet;
+}
+
+export function moveHaloPlanets(ui: GameUIManager, stepId: StepId): LocatablePlanet[] {
+  if (stepId === 'selectMovePlanet') {
+    const planet = guideMovePlanet(ui);
+    return planet ? [planet] : [];
+  }
+  if (stepId !== 'clickNearby') return [];
+  const from = selectedMovePlanet(ui);
+  if (!from) return [];
+  const percent = ui.getForcesSending(from.locationId);
+  const reach =
+    percent !== SLIDER_ASIDE && canReachNearbyPlanet(ui, from, percent)
+      ? percent
+      : sufficientSendPercent(ui, from);
+  if (reach === undefined) return [];
+  const planet = guideNearbyPlanet(ui, from, reach);
+  return planet ? [planet] : [];
 }
 
 function openMove(ui: GameUIManager, step: StepId): void {
@@ -168,7 +309,7 @@ function watchMove(hooks: WatchHooks): () => void {
 async function assistMove(hooks: AssistHooks): Promise<void> {
   const { ui, stepId, finish, isCurrent } = hooks;
   if (stepId === 'selectMovePlanet') {
-    const from = sourcePlanet(ui);
+    const from = guideMovePlanet(ui);
     if (!from) throw new Error('Your planet is not on the map yet.');
     ui.setSelectedPlanet(from);
     finish();
@@ -203,7 +344,7 @@ async function assistMove(hooks: AssistHooks): Promise<void> {
   const percent = ui.getForcesSending(from.locationId);
   const sending = percent === SLIDER_ASIDE ? SEND_PERCENT : percent;
   if (sending !== percent) ui.setForcesSending(from.locationId, sending);
-  const target = pickTarget(ui, from, false, sending);
+  const target = guideNearbyPlanet(ui, from, sending);
   if (!target) throw new Error('No planet in range from here.');
   if (ui.getSelectedPlanet()?.locationId !== from.locationId || !ui.isSendingForces()) {
     ui.setSelectedPlanet(from);

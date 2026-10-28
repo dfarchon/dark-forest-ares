@@ -13,7 +13,8 @@ import { useUIManager } from '../../Utils/AppHooks';
 import { MIN_CHUNK_SIZE } from '../../Utils/constants';
 import UIEmitter, { UIEmitterEvent } from '../../Utils/UIEmitter';
 import { fogPage } from './FogPage';
-import { movePage } from './MovePage';
+import { GuideMouse } from './GuideMouse';
+import { guideMovePlanet, moveHaloPlanets, movePage } from './MovePage';
 import { PlanetHalo, planetPage } from './PlanetPage';
 
 const IDLE_RETURN_MS = 4 * 60 * 1000;
@@ -542,11 +543,17 @@ export function frameCoords(viewport: Viewport, a: WorldCoords, b: WorldCoords):
 }
 
 function moveGuideFrame(ui: GameUIManager, viewport: Viewport): ViewFrame {
-  const from = sourcePlanet(ui);
+  const from = guideMovePlanet(ui);
   if (!from) return homeRestFrame(ui, viewport);
   const target = pickTarget(ui, from, false, SEND_PERCENT);
   if (!target) return planetCloseFrame(ui, from);
-  return coordsFrame(viewport, from.location.coords, target.location.coords);
+  const dx = Math.abs(from.location.coords.x - target.location.coords.x);
+  const dy = Math.abs(from.location.coords.y - target.location.coords.y);
+  const span = Math.max(dx * 2, dy * 2 * aspectRatio(viewport));
+  return {
+    center: { ...from.location.coords },
+    width: clampWidth(Math.max(span * 1.45, viewport.minWorldWidth * 40), viewport),
+  };
 }
 
 function playViewTour(target: ViewFrame, onPhase: (phase: TourPhase) => void): () => void {
@@ -1139,7 +1146,9 @@ export function BoothGuidePane() {
       if (page === 'cover') {
         stopHomeReturn.current = playDampedReturn(homeRestFrame(uiManager, Viewport.getInstance()));
       } else if (page === 'move' && stepId === 'selectMovePlanet') {
-        stopHomeReturn.current = playDampedReturn(moveGuideFrame(uiManager, Viewport.getInstance()));
+        stopHomeReturn.current = playDampedReturn(
+          moveGuideFrame(uiManager, Viewport.getInstance())
+        );
       } else if (page === 'fog' && (enteringFog || !minerAlreadyFramed(uiManager))) {
         stopHomeReturn.current = playMinedReveal(minerCenterFrame(uiManager));
       }
@@ -1270,6 +1279,7 @@ export function BoothGuidePane() {
   const pageIndex = PAGE_ORDER.indexOf(page);
   const previous = pageIndex > 0 ? PAGE_ORDER[pageIndex - 1] : null;
   const next = pageIndex < PAGE_ORDER.length - 1 ? PAGE_ORDER[pageIndex + 1] : null;
+  const navLocked = phase !== 'waiting';
   const taskPage = isTask(page) ? TASK_PAGES[page] : null;
   const step = stepId ? STEPS[stepId] : null;
   const dockText = step
@@ -1283,9 +1293,45 @@ export function BoothGuidePane() {
 
   return (
     <>
-      {page === 'planet' && stepId === 'selectPlanet' && <PlanetHalo ui={uiManager} />}
+      {page === 'planet' && stepId === 'selectPlanet' && (
+        <PlanetHalo
+          ui={uiManager}
+          planets={() => {
+            const planet = sourcePlanet(uiManager);
+            return planet ? [planet] : [];
+          }}
+        />
+      )}
+      {page === 'move' && (stepId === 'selectMovePlanet' || stepId === 'clickNearby') && (
+        <PlanetHalo ui={uiManager} planets={() => moveHaloPlanets(uiManager, stepId)} />
+      )}
+      {phase === 'waiting' &&
+        (stepId === 'selectPlanet' ||
+          stepId === 'selectMovePlanet' ||
+          stepId === 'clickNearby') && (
+        <GuideMouse
+          ui={uiManager}
+          page={page}
+          stepId={stepId}
+          panelRef={panelRef}
+          planets={() => {
+            if (page === 'planet' && stepId === 'selectPlanet') {
+              const planet = sourcePlanet(uiManager);
+              return planet ? [planet] : [];
+            }
+            if (page === 'move' && (stepId === 'selectMovePlanet' || stepId === 'clickNearby')) {
+              return moveHaloPlanets(uiManager, stepId);
+            }
+            return [];
+          }}
+          focusPlanet={() => undefined}
+          darkPatch={() => undefined}
+          zoomNeedsDrag={() => false}
+        />
+      )}
       <Panel
         ref={panelRef}
+        data-booth-panel
         style={{
           left: position.x,
           top: position.y,
@@ -1368,12 +1414,16 @@ export function BoothGuidePane() {
         {(previous || (next && page !== 'cover')) && (
           <PageNav>
             {previous ? (
-              <Btn onClick={() => open(previous, firstStep(previous))}>Previous</Btn>
+              <Btn disabled={navLocked} onClick={() => open(previous, firstStep(previous))}>
+                Previous
+              </Btn>
             ) : (
               <span />
             )}
             {next && page !== 'cover' ? (
-              <Btn onClick={() => open(next, firstStep(next))}>Next</Btn>
+              <Btn disabled={navLocked} onClick={() => open(next, firstStep(next))}>
+                Next
+              </Btn>
             ) : (
               <span />
             )}

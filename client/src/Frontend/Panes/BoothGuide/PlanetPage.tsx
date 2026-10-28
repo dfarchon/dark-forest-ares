@@ -1,3 +1,4 @@
+import { LocatablePlanet } from '@dfares/types';
 import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import GameUIManager from '../../../Backend/GameLogic/GameUIManager';
@@ -159,8 +160,16 @@ const HaloCanvas = styled.canvas`
   pointer-events: none;
 `;
 
-export function PlanetHalo({ ui }: { ui: GameUIManager }) {
+export function PlanetHalo({
+  ui,
+  planets,
+}: {
+  ui: GameUIManager;
+  planets: () => LocatablePlanet[];
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const planetsRef = useRef(planets);
+  planetsRef.current = planets;
 
   useEffect(() => {
     let frame = 0;
@@ -168,7 +177,6 @@ export function PlanetHalo({ ui }: { ui: GameUIManager }) {
     const draw = (now: number) => {
       if (stopped) return;
       const canvas = ref.current;
-      const planet = sourcePlanet(ui);
       if (canvas) {
         const parent = canvas.parentElement;
         const width = parent?.clientWidth ?? 0;
@@ -178,14 +186,14 @@ export function PlanetHalo({ ui }: { ui: GameUIManager }) {
         const ctx = canvas.getContext('2d');
         if (ctx && width > 0 && height > 0) {
           ctx.clearRect(0, 0, width, height);
-          if (planet) {
-            const viewport = Viewport.getInstance();
+          const viewport = Viewport.getInstance();
+          const pulse = 1.45 + 0.28 * Math.sin(now / 280);
+          ctx.strokeStyle = dfstyles.colors.dfpink;
+          ctx.lineWidth = 3;
+          for (const planet of planetsRef.current()) {
             const point = viewport.worldToCanvasCoords(planet.location.coords);
             const rad = Math.max(ui.getRadiusOfPlanetLevel(planet.planetLevel), 1);
             const screenRad = Math.max(viewport.worldToCanvasDist(rad), 10);
-            const pulse = 1.45 + 0.28 * Math.sin(now / 280);
-            ctx.strokeStyle = dfstyles.colors.dfpink;
-            ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.arc(point.x, point.y, screenRad * pulse, 0, Math.PI * 2);
             ctx.stroke();
