@@ -60,6 +60,15 @@ const ButtonWrapper = styled.div`
   }
 `;
 
+const entryActionText = css`
+  font-family: 'Inconsolata', monospace;
+  font-size: 16pt;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: normal;
+  line-height: 1;
+`;
+
 const boothBreath = keyframes`
   0%,
   100% {
@@ -83,8 +92,7 @@ const EnterButton = styled.button<{ $breathe?: boolean }>`
   border-radius: 4px;
   color: #ffc3cd;
   background: rgba(255, 195, 205, 0.08);
-  font-family: inherit;
-  font-size: 16pt;
+  ${entryActionText}
   cursor: pointer;
   transition: border-color 0.2s, color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.2s;
 
@@ -504,9 +512,8 @@ const GuideLink = styled.a`
   border-radius: 4px;
   color: var(--chain-quiet);
   background: rgba(255, 195, 205, 0.08);
-  font-family: inherit;
-  font-size: ${dfstyles.fontSizeS};
-  letter-spacing: 0.02em;
+  ${entryActionText}
+  text-decoration: none;
   transition: border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
 
   &:hover {
