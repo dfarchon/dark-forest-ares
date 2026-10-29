@@ -20,6 +20,7 @@ class ModalManager extends EventEmitter {
   ) {
     super();
     this.lastIndex = 0;
+    this.cursorState = CursorState.Normal;
     this.activeModalId$ = monomitter(true);
     this.modalPositionChanged$ = monomitter();
     this.persistentChunkStore = persistentChunkStore;

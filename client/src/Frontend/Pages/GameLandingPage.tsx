@@ -236,6 +236,7 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
   const quickBootstrapEffectGenRef = useRef(0);
   const exhibitionAccountRef = useRef<ExhibitionAccount | null>(null);
   const exhibitionBootstrapStartedRef = useRef(false);
+  const fetchingEthDataStartedRef = useRef(false);
   const [exhibitionActive, setExhibitionActive] = useState(false);
 
   const [browserCompatibleState, setBrowserCompatibleState] =
@@ -1208,6 +1209,9 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
 
   const advanceStateFromFetchingEthData = useCallback(
     async (terminal: React.MutableRefObject<TerminalHandle | undefined>) => {
+      if (fetchingEthDataStartedRef.current) return;
+      fetchingEthDataStartedRef.current = true;
+
       let newGameManager: GameManager;
 
       try {
@@ -1242,13 +1246,30 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
         return;
       }
 
-      setGameManager(newGameManager);
+      let newGameUIManager: GameUIManager;
+      try {
+        newGameUIManager = await GameUIManager.create(newGameManager, terminal);
+      } catch (e) {
+        console.error(e);
+        newGameManager.destroy();
+        setStep(TerminalPromptStep.ERROR);
+        terminal.current?.println(
+          'Unable to initialize the game interface. Please refresh the page.',
+          TerminalTextStyle.Red
+        );
+        return;
+      }
 
-      window.df = newGameManager;
-
-      const newGameUIManager = await GameUIManager.create(newGameManager, terminal);
-
-      window.ui = newGameUIManager;
+      const publishGameManagers = () => {
+        const previousGameUIManager = gameUIManagerRef.current;
+        if (previousGameUIManager && previousGameUIManager !== newGameUIManager) {
+          previousGameUIManager.destroy();
+        }
+        gameUIManagerRef.current = newGameUIManager;
+        setGameManager(newGameManager);
+        window.df = newGameManager;
+        window.ui = newGameUIManager;
+      };
 
       terminal.current?.newline();
       terminal.current?.println('Connected to Dark Forest Punk Contract');
@@ -1262,8 +1283,6 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
       // terminal.current?.println('us optimize performance and fix bugs. You can opt out of this');
       // terminal.current?.println('in the Settings pane.');
       // terminal.current?.newline();
-
-      gameUIManagerRef.current = newGameUIManager;
 
       const exhibitionAccount = exhibitionAccountRef.current;
       const exhibitionSpawn = exhibitionAccount?.spawn;
@@ -1279,6 +1298,7 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
                 TerminalTextStyle.Red
               );
               setStep(TerminalPromptStep.TERMINATED);
+              newGameUIManager.destroy();
               return;
             }
             terminal.current?.println(
@@ -1304,9 +1324,11 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
             setBooleanSetting(settingConfig, Setting.TutorialOpen, false);
           }
           terminal.current?.println('Mining around the configured spawn center.');
+          publishGameManagers();
           setStep(TerminalPromptStep.ALL_CHECKS_PASS);
         } catch (err) {
           console.error(err);
+          newGameUIManager.destroy();
           terminal.current?.println(
             err instanceof Error ? err.message : String(err),
             TerminalTextStyle.Red
@@ -1315,6 +1337,8 @@ export function GameLandingPage({ match, location }: RouteComponentProps<{ contr
         }
         return;
       }
+
+      publishGameManagers();
 
       if (!newGameManager.hasJoinedGame() && spectate === false) {
         setStep(TerminalPromptStep.NO_HOME_PLANET);

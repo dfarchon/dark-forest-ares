@@ -176,6 +176,7 @@ class MinerManager extends EventEmitter {
 
   private exploreNext(fromChunk: Rectangle, jobId: number) {
     this.nextValidExploreTarget(fromChunk, jobId).then((nextChunk: Rectangle | undefined) => {
+      if (!this.isExploring || jobId !== this.currentJobId) return;
       if (!!nextChunk) {
         const nextChunkKey = this.chunkLocationToKey(nextChunk, jobId);
         const center = {
@@ -275,7 +276,7 @@ class MinerManager extends EventEmitter {
       count -= 1;
     }
     // since user might have switched jobs or stopped exploring during the above loop
-    if (!this.isExploring && jobId !== this.currentJobId) {
+    if (!this.isExploring || jobId !== this.currentJobId) {
       return undefined;
     }
     if (this.isValidExploreTarget(candidateChunk)) {
